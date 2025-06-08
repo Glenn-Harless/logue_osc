@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minilogue XD Oscillator Preview</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Minilogue XD Oscillator Preview</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <button id="play" class="btn btn-play">Play</button>
+                <button id="stop" class="btn btn-stop" disabled>Stop</button>
+            </div>
+            
+            <div class="control-group">
+                <label for="note">Note:</label>
+                <select id="note">
+                    <option value="48">C3</option>
+                    <option value="60" selected>C4</option>
+                    <option value="72">C5</option>
+                    <option value="84">C6</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="waveform">Waveform:</label>
+                <select id="waveform">
+                    <option value="sine" selected>Sine</option>
+                    <option value="square">Square</option>
+                    <option value="sawtooth">Sawtooth</option>
+                    <option value="triangle">Triangle</option>
+                    <option value="fm-bell" disabled>FM Bell (Load WASM)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <button id="load-wasm" class="btn">Load FM Bell</button>
+            </div>
+            
+            <div class="control-group">
+                <label for="shape">Shape:</label>
+                <input type="range" id="shape" min="0" max="1023" value="512">
+                <span id="shape-value">512</span>
+            </div>
+            
+            <div class="control-group">
+                <label for="volume">Volume:</label>
+                <input type="range" id="volume" min="0" max="100" value="30">
+                <span id="volume-value">30%</span>
+            </div>
+        </div>
+        
+        <div class="visualizer">
+            <canvas id="waveform-display" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="info">
+            <p>Status: <span id="status">Ready</span></p>
+            <p>Frequency: <span id="frequency">--</span> Hz</p>
+        </div>
+    </div>
+    
+    <script src="js/audio-engine.js"></script>
+    <script src="js/ui-controls.js"></script>
+</body>
+</html>
