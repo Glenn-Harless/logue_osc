@@ -1,0 +1,43 @@
+# Tasks and planning
+tasks/
+
+# Build outputs
+*.mnlgxdunit
+*.bin
+*.elf
+*.hex
+*.map
+*.lst
+*.o
+*.d
+build/
+_build/
+
+# Docker volumes
+.docker-cache/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Dependencies
+# (logue-sdk is tracked as a submodule)
+
+# Temporary files
+*.tmp
+*.bak
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+
+# Node (if using any JS tools)
+node_modules/
+package-lock.json

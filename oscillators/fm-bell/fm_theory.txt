@@ -1,0 +1,81 @@
+# FM Synthesis Theory for Metallic Sounds
+
+## Why FM for Bells/Metallic Sounds?
+
+FM synthesis excels at creating metallic timbres because:
+1. It generates complex harmonic and inharmonic spectra efficiently
+2. Real metallic objects have non-integer harmonic relationships
+3. The modulation index controls brightness naturally
+4. Decay characteristics match struck metal objects
+
+## Key Ratios for Different Sounds
+
+### Harmonic Ratios (Musical)
+- 1:1 - Fundamental only
+- 2:1 - Octave (hollow sound)
+- 3:1 - Octave + fifth (clarinet-like)
+- 4:1 - Two octaves (bright)
+
+### Inharmonic Ratios (Metallic)
+- 1.41:1 - Square root of 2 (tubular bells)
+- 3.14:1 - Pi ratio (steel drums)
+- 3.5:1 - Classic FM bell
+- 7.1:1 - Kalimba/thumb piano
+- 13:1 - Glass/crystal
+
+## Modulation Index (I) Effects
+
+I = (Δf × mod_depth) / fm
+
+Where:
+- Δf = frequency deviation
+- fm = modulating frequency
+
+### Low Index (I < 1)
+- Few sidebands
+- Warm, simple tones
+- Good for soft bells
+
+### Medium Index (1 < I < 5)
+- Rich harmonic content
+- Classic FM sounds
+- Steel drums, marimbas
+
+### High Index (I > 5)
+- Many sidebands
+- Bright, clangy
+- Harsh metallic hits
+
+## Envelope Relationships
+
+### Classic Bell (Amp > Mod decay)
+- Bright attack
+- Mellows as it decays
+- Natural bell behavior
+
+### Reverse Bell (Mod > Amp decay)
+- Starts mellow
+- Gets brighter
+- Unnatural but interesting
+
+### Percussion (Very fast both)
+- Sharp transient
+- Quick decay
+- Good for hits/clicks
+
+## Special Techniques
+
+### Double Carrier
+- Use same modulator for two carriers
+- Slight detune between carriers
+- Creates chorus/ensemble effect
+
+### Feedback FM
+- Route carrier back to modulator
+- Creates noise and chaos
+- Good for cymbals/gongs
+
+### Nested FM
+- Modulator has its own modulator
+- Very complex spectra
+- Good for evolving sounds

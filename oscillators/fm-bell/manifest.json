@@ -1,0 +1,21 @@
+{
+    "header" : 
+    {
+        "platform" : "minilogue-xd",
+        "module" : "osc",
+        "api" : "1.1-0",
+        "dev_id" : 0,
+        "prg_id" : 0,
+        "version" : "1.0-0",
+        "name" : "FM Bell",
+        "num_param" : 6,
+        "params" : [
+            ["Ratio",      1, 20, ""],
+            ["FM Depth",   0, 100, "%"],
+            ["Decay",      0, 100, "%"],
+            ["Mod Decay",  0, 100, "%"],
+            ["Fine Ratio", 0, 100, "%"],
+            ["Vibrato",    0, 100, "%"]
+          ]
+    }
+}
