@@ -1,0 +1,38 @@
+#!/bin/bash
+
+echo "Building fm-bell oscillator to WASM (simple version)..."
+
+# Check if emcc is available
+if ! command -v emcc &> /dev/null; then
+    echo "Emscripten not found. Please install it first:"
+    echo ""
+    echo "brew install emscripten"
+    echo ""
+    echo "Or follow instructions at: https://emscripten.org/docs/getting_started/downloads.html"
+    exit 1
+fi
+
+# Create a temporary copy with our stubs
+cp ../../oscillators/fm-bell/fm_bell.c fm_bell_wasm.c
+
+# Replace the include
+sed -i '' 's/#include "userosc.h"/#include "logue-stubs.h"/' fm_bell_wasm.c
+
+# Compile to WASM with simpler options
+emcc fm_bell_wasm.c \
+  -O2 \
+  -s WASM=1 \
+  -s MODULARIZE=1 \
+  -s EXPORT_NAME="FMBellModule" \
+  -s EXPORTED_FUNCTIONS='["_OSC_INIT","_OSC_CYCLE","_OSC_NOTEON","_OSC_NOTEOFF","_OSC_PARAM","_malloc","_free"]' \
+  -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
+  -o fm-bell.js
+
+# Clean up
+rm fm_bell_wasm.c
+
+if [ -f "fm-bell.js" ] && [ -f "fm-bell.wasm" ]; then
+    echo "Build complete! Output: fm-bell.js and fm-bell.wasm"
+else
+    echo "Build failed!"
+fi
