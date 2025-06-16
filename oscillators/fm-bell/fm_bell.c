@@ -51,13 +51,13 @@ void OSC_INIT(uint32_t platform, uint32_t api)
 {
     state.carrier_phase = 0.0f;
     state.mod_phase = 0.0f;
-    state.ratio = 1.0f;
+    state.ratio = 3.5f;        // Default to nice bell ratio
     state.fine_ratio = 0.0f;
-    state.fm_depth = 0.0f;
+    state.fm_depth = 2.5f;     // Audible FM depth
     state.amp_env = 0.0f;
     state.mod_env = 0.0f;
-    state.amp_decay = 0.99f;
-    state.mod_decay = 0.99f;
+    state.amp_decay = 0.9995f; // Much longer decay for bell sound
+    state.mod_decay = 0.999f;  // Slightly faster mod decay
     state.vibrato_phase = 0.0f;
     state.vibrato_depth = 0.0f;
     state.note_on = 0;
@@ -69,7 +69,19 @@ void OSC_CYCLE(const user_osc_param_t * const params,
                const uint32_t frames)
 {
     const float w0 = params->pitch;
-    const float mod_w0 = w0 * (state.ratio + state.fine_ratio);
+    
+    // Apply shape LFO if present
+    float shape_lfo = q31_to_f32(params->shape_lfo);
+    float effective_ratio = state.ratio;
+    float effective_fm_depth = state.fm_depth;
+    
+    // LFO can modulate ratio and FM depth slightly
+    if (shape_lfo != 0.0f) {
+        effective_ratio += shape_lfo * 0.5f;
+        effective_fm_depth += shape_lfo * 0.5f;
+    }
+    
+    const float mod_w0 = w0 * (effective_ratio + state.fine_ratio);
     
     // Vibrato LFO increment
     const float vibrato_inc = VIBRATO_FREQ * k_samplerate_recipf;
@@ -91,7 +103,7 @@ void OSC_CYCLE(const user_osc_param_t * const params,
         // FM synthesis
         // Modulator
         float mod_sig = osc_sinf(state.mod_phase);
-        mod_sig *= state.fm_depth * state.mod_env;
+        mod_sig *= effective_fm_depth * state.mod_env;
         
         // Carrier with FM and vibrato
         float carrier_freq = w0 * (1.0f + vibrato);
@@ -143,6 +155,29 @@ void OSC_PARAM(uint16_t index, uint16_t value)
     const float valf = param_val_to_f32(value);
     
     switch (index) {
+        case k_user_osc_param_shape:
+            // Shape knob controls multiple parameters for expressiveness
+            // 0-1 mapped to various bell characteristics
+            
+            // Ratio: 1-8 (bell-like ratios)
+            state.ratio = 1.0f + valf * 7.0f;
+            
+            // FM Depth: increases with shape
+            state.fm_depth = 1.0f + valf * 4.0f;
+            
+            // Decay: shorter as shape increases
+            {
+                float decay_time = 5.0f - valf * 4.5f; // 5s to 0.5s
+                state.amp_decay = fast_expf(-1.0f / (decay_time * k_samplerate));
+                state.mod_decay = fast_expf(-1.0f / (decay_time * 0.3f * k_samplerate));
+            }
+            break;
+            
+        case k_user_osc_param_shiftshape:
+            // Shift+Shape controls vibrato amount
+            state.vibrato_depth = valf * 50.0f; // 0-50% vibrato
+            break;
+            
         case PARAM_RATIO:
             // Scale 0-1 to 1-20
             state.ratio = 1.0f + valf * 19.0f;
