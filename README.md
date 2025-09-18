@@ -21,14 +21,15 @@ logue_osc/
 ### 1. Test Oscillators in Browser
 
 ```bash
-cd web-osc-preview
-python3 -m http.server 8080
+./scripts/dev_preview.py          # rebuilds WASM + launches http.server on port 8080
+# or skip the rebuild if you already ran the wasm build script
+./scripts/dev_preview.py --skip-build
 # Open http://localhost:8080
 ```
 
-- Click "Load FM Bell" to load the oscillator
-- Use Play/Stop to test
-- Adjust Shape parameter (0-1023) to change the sound
+- Mix three oscillators (two analog models + one logue SDK user slot)
+- Click "Load Selected" in Oscillator 3 to compile + load the logue SDK oscillator via WASM
+- Use each oscillator card to tweak waveform, shape, level, and logue parameters in real time
 
 ### 2. Build Oscillators for Hardware
 
@@ -49,22 +50,23 @@ make
 ### FM Bell
 - Two-operator FM synthesis
 - Creates bell, kalimba, and steel drum sounds
-- Shape parameter controls FM ratio and decay time
-- Latest build: `builds/fm_bell_v4.mnlgxdunit`
+- Parameter map follows `OSC_PARAM` slots (ratio, FM depth, decay, fine, vibrato)
+- Latest build: `builds/fm_bell_v5.mnlgxdunit`
 
 ## Web Preview Tool
 
 The web-based preview tool (`web-osc-preview/`) allows you to:
 - Test oscillator code before hardware deployment
-- Adjust parameters in real-time
+- Adjust logue parameters in real-time (auto-generated from manifest)
 - Visualize waveforms
-- Switch between built-in waveforms and custom oscillators
+- Layer three oscillators (two built-in, one logue SDK) to approximate Minilogue XD signal flow
+- Switch between built-in waveforms and custom oscillators compiled from the logue SDK
 
 ### Features
 - Web Audio API at 48kHz (matching hardware)
-- Real-time parameter control
+- Dynamic parameter panel sourced from logue manifests (`web-osc-preview/manifests/`)
 - Waveform visualization
-- Support for both JavaScript and WASM oscillators
+- Loads logue SDK C oscillators through Emscripten WASM (with JS fallback for development)
 
 ## Development
 
@@ -87,6 +89,16 @@ The web-based preview tool (`web-osc-preview/`) allows you to:
    cd web-osc-preview/wasm
    ./build-fm-bell.sh
    ```
+
+### Oscillator Metadata
+
+- `web-osc-preview/manifests/index.json` lists available custom oscillators for the preview UI.
+- `web-osc-preview/manifests/<oscillator>.json` describes each user oscillator's `OSC_PARAM` slots and build artefacts.
+- Manifests drive the web UI so new oscillators only need C code + metadata to appear in the preview.
+
+### Development Utilities
+
+- `scripts/dev_preview.py` – optional helper that rebuilds the active logue SDK oscillator to WASM (using Emscripten) and launches the preview server.
 
 ## Documentation
 

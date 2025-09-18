@@ -1,0 +1,63 @@
+{
+  "id": "fm-bell",
+  "name": "FM Bell",
+  "description": "Two-operator FM bell designed for the Minilogue XD logue SDK.",
+  "source": "oscillators/fm-bell/fm_bell.c",
+  "wasm": {
+    "module": "../wasm/fm-bell.js"
+  },
+  "fallback": {
+    "module": "./fm-bell-js.js",
+    "export": "FMBellOscillator"
+  },
+  "parameters": [
+    {
+      "index": 0,
+      "name": "Ratio",
+      "description": "Modulator to carrier ratio (1x - 20x).",
+      "min": 0,
+      "max": 1023,
+      "default": 512
+    },
+    {
+      "index": 1,
+      "name": "FM Depth",
+      "description": "Frequency modulation index (0 - 10).",
+      "min": 0,
+      "max": 1023,
+      "default": 256
+    },
+    {
+      "index": 2,
+      "name": "Amp Decay",
+      "description": "Amplitude envelope decay time (short - long).",
+      "min": 0,
+      "max": 1023,
+      "default": 640
+    },
+    {
+      "index": 3,
+      "name": "Mod Decay",
+      "description": "Modulator envelope decay time (short - long).",
+      "min": 0,
+      "max": 1023,
+      "default": 512
+    },
+    {
+      "index": 4,
+      "name": "Fine Ratio",
+      "description": "Fine ratio detuning (-0.5 - +0.5).",
+      "min": 0,
+      "max": 1023,
+      "default": 512
+    },
+    {
+      "index": 5,
+      "name": "Vibrato",
+      "description": "Vibrato depth.",
+      "min": 0,
+      "max": 1023,
+      "default": 0
+    }
+  ]
+}

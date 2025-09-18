@@ -1,0 +1,10 @@
+{
+  "oscillators": [
+    {
+      "id": "fm-bell",
+      "name": "FM Bell",
+      "description": "FM percussion voice designed via logue SDK.",
+      "manifest": "manifests/fm-bell.json"
+    }
+  ]
+}

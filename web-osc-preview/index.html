@@ -27,31 +27,87 @@
             </div>
             
             <div class="control-group">
-                <label for="waveform">Waveform:</label>
-                <select id="waveform">
-                    <option value="sine" selected>Sine</option>
-                    <option value="square">Square</option>
-                    <option value="sawtooth">Sawtooth</option>
-                    <option value="triangle">Triangle</option>
-                    <option value="fm-bell" disabled>FM Bell (Load WASM)</option>
-                </select>
+                <label for="master-volume">Master Volume:</label>
+                <input type="range" id="master-volume" min="0" max="100" value="30">
+                <span id="master-volume-value">30%</span>
             </div>
-            
-            <div class="control-group">
-                <button id="load-wasm" class="btn">Load FM Bell</button>
-            </div>
-            
-            <div class="control-group">
-                <label for="shape">Shape:</label>
-                <input type="range" id="shape" min="0" max="1023" value="512">
-                <span id="shape-value">512</span>
-            </div>
-            
-            <div class="control-group">
-                <label for="volume">Volume:</label>
-                <input type="range" id="volume" min="0" max="100" value="30">
-                <span id="volume-value">30%</span>
-            </div>
+        </div>
+
+        <div class="oscillators">
+            <section class="osc-card" data-osc="osc1">
+                <header>
+                    <h2>Oscillator 1</h2>
+                    <p class="osc-subtitle">Analog Model</p>
+                </header>
+                <div class="control-group">
+                    <label for="osc1-waveform">Waveform:</label>
+                    <select id="osc1-waveform">
+                        <option value="sawtooth" selected>Saw</option>
+                        <option value="square">Square</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="sine">Sine</option>
+                        <option value="noise">Noise</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="osc1-shape">Shape:</label>
+                    <input type="range" id="osc1-shape" min="0" max="1023" value="512">
+                    <span id="osc1-shape-value">512</span>
+                </div>
+                <div class="control-group">
+                    <label for="osc1-level">Level:</label>
+                    <input type="range" id="osc1-level" min="0" max="100" value="40">
+                    <span id="osc1-level-value">40%</span>
+                </div>
+            </section>
+
+            <section class="osc-card" data-osc="osc2">
+                <header>
+                    <h2>Oscillator 2</h2>
+                    <p class="osc-subtitle">Analog Model</p>
+                </header>
+                <div class="control-group">
+                    <label for="osc2-waveform">Waveform:</label>
+                    <select id="osc2-waveform">
+                        <option value="triangle" selected>Triangle</option>
+                        <option value="sawtooth">Saw</option>
+                        <option value="square">Square</option>
+                        <option value="sine">Sine</option>
+                        <option value="noise">Noise</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="osc2-shape">Shape:</label>
+                    <input type="range" id="osc2-shape" min="0" max="1023" value="512">
+                    <span id="osc2-shape-value">512</span>
+                </div>
+                <div class="control-group">
+                    <label for="osc2-level">Level:</label>
+                    <input type="range" id="osc2-level" min="0" max="100" value="35">
+                    <span id="osc2-level-value">35%</span>
+                </div>
+            </section>
+
+            <section class="osc-card" data-osc="osc3">
+                <header>
+                    <h2>Oscillator 3</h2>
+                    <p class="osc-subtitle">logue SDK User Slot</p>
+                </header>
+                <div class="control-group">
+                    <label for="osc3-select">Oscillator:</label>
+                    <select id="osc3-select"></select>
+                </div>
+                <div class="control-group">
+                    <button id="osc3-load" class="btn">Load Selected</button>
+                    <span id="osc3-status" class="osc-status">Not Loaded</span>
+                </div>
+                <div class="control-group">
+                    <label for="osc3-level">Level:</label>
+                    <input type="range" id="osc3-level" min="0" max="100" value="40">
+                    <span id="osc3-level-value">40%</span>
+                </div>
+                <div class="parameter-grid" id="osc3-parameters"></div>
+            </section>
         </div>
         
         <div class="visualizer">

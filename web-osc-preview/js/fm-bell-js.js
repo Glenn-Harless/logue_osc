@@ -56,19 +56,46 @@ export class FMBellOscillator {
         // Envelopes continue to decay
     }
     
+    setParam(index, value) {
+        const valNorm = value / 1023.0;
+
+        switch (index) {
+            case 0: // Ratio
+                this.currentShape = value;
+                this.ratio = 1.0 + valNorm * 19.0;
+                break;
+
+            case 1: // FM Depth
+                this.fm_depth = valNorm * 10.0;
+                break;
+
+            case 2: { // Amp decay
+                const decayTime = this.MIN_DECAY_TIME + valNorm * (this.MAX_DECAY_TIME - this.MIN_DECAY_TIME);
+                this.amp_decay = Math.exp(-1.0 / (decayTime * this.sampleRate));
+                break;
+            }
+
+            case 3: { // Mod decay (half max time)
+                const decayTime = this.MIN_DECAY_TIME + valNorm * (this.MAX_DECAY_TIME - this.MIN_DECAY_TIME) * 0.5;
+                this.mod_decay = Math.exp(-1.0 / (decayTime * this.sampleRate));
+                break;
+            }
+
+            case 4: // Fine ratio
+                this.fine_ratio = valNorm - 0.5;
+                break;
+
+            case 5: // Vibrato depth
+                this.vibrato_depth = valNorm * 100.0;
+                break;
+
+            default:
+                break;
+        }
+    }
+
     setShape(value) {
-        // Shape controls ratio (0-1023 -> 1-20)
-        const valf = value / 1023.0;
-        this.ratio = 1.0 + valf * 19.0;
-        
-        // Also set some FM depth based on shape
-        this.fm_depth = valf * 5.0; // 0-5 modulation index
-        
-        // For now, use simpler decay calculation
-        // Lower shape = longer decay (bell-like)
-        // Higher shape = shorter decay (percussive)
-        this.amp_decay = 0.9999 - (valf * 0.005); // Range: 0.9999 to 0.9949
-        this.mod_decay = 0.999 - (valf * 0.002);   // Modulator decays faster
+        this.setParam(0, value);
     }
     
     process(outputArray, frames) {

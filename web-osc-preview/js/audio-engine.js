@@ -1,267 +1,402 @@
 class OscillatorEngine {
     constructor() {
+        this.sampleRate = 48000;
         this.audioContext = null;
-        this.oscillator = null;
         this.gainNode = null;
         this.analyser = null;
-        this.isPlaying = false;
-        
-        // For custom waveform generation
         this.scriptNode = null;
-        this.phase = 0;
-        
-        // WASM oscillator
-        this.wasmOscillator = null;
-        this.useWasm = false;
-        
-        // Default parameters
-        this.currentNote = 60; // Middle C
-        this.currentShape = 512; // Middle position (0-1023)
-        this.currentVolume = 0.3;
-        this.currentWaveform = 'sine';
-        
-        // Sample rate matching Minilogue XD
-        this.sampleRate = 48000;
+        this.bufferSize = 256;
+        this.isPlaying = false;
+        this.masterVolume = 0.3;
+        this.currentNote = 60;
+
+        this.voices = {
+            osc1: this.createBuiltinVoice('osc1', 'sawtooth', 0.4),
+            osc2: this.createBuiltinVoice('osc2', 'triangle', 0.35),
+            osc3: this.createUserVoice('osc3', 0.4)
+        };
+
+        this.tempBuffer = new Float32Array(this.bufferSize);
     }
-    
+
+    createBuiltinVoice(id, waveform, level) {
+        return {
+            id,
+            type: 'builtin',
+            waveform,
+            level,
+            shape: 512,
+            phase: 0,
+            lastSample: 0,
+            frequency: 0
+        };
+    }
+
+    createUserVoice(id, level) {
+        return {
+            id,
+            type: 'user',
+            level,
+            frequency: 0,
+            manifest: null,
+            params: new Map(),
+            oscillator: null,
+            loaded: false,
+            isFallback: false
+        };
+    }
+
+    getVoice(id) {
+        return this.voices[id];
+    }
+
     init() {
-        // Create audio context with specific sample rate
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
             sampleRate: this.sampleRate
         });
-        
-        // Create analyser for visualization
+
         this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 1024; // 512 samples for visualization
+        this.analyser.fftSize = 1024;
         this.analyser.smoothingTimeConstant = 0;
-        
-        // Create gain node for volume control
+
         this.gainNode = this.audioContext.createGain();
-        this.gainNode.gain.value = this.currentVolume;
-        
-        // Connect gain to analyser to destination
+        this.gainNode.gain.value = this.masterVolume;
+
         this.gainNode.connect(this.analyser);
         this.analyser.connect(this.audioContext.destination);
     }
-    
+
+    ensureScriptNode() {
+        if (this.scriptNode) {
+            return;
+        }
+
+        this.scriptNode = this.audioContext.createScriptProcessor(this.bufferSize, 0, 1);
+        this.scriptNode.onaudioprocess = (event) => {
+            const output = event.outputBuffer.getChannelData(0);
+            const frames = output.length;
+            this.renderVoices(output, frames);
+        };
+    }
+
+    ensureTempBuffer(frames) {
+        if (!this.tempBuffer || this.tempBuffer.length !== frames) {
+            this.tempBuffer = new Float32Array(frames);
+        }
+        return this.tempBuffer;
+    }
+
     noteToFrequency(note) {
-        // Convert MIDI note to frequency
         return 440 * Math.pow(2, (note - 69) / 12);
     }
-    
-    generateWaveform(samples, frequency) {
-        const phaseIncrement = frequency / this.sampleRate;
-        const shapeNorm = this.currentShape / 1023; // Normalize to 0-1
-        
-        for (let i = 0; i < samples.length; i++) {
-            let sample = 0;
-            
-            switch (this.currentWaveform) {
-                case 'sine':
-                    // Shape controls harmonic content
-                    sample = Math.sin(2 * Math.PI * this.phase);
-                    // Add harmonics based on shape
-                    if (shapeNorm > 0) {
-                        sample += Math.sin(4 * Math.PI * this.phase) * shapeNorm * 0.3;
-                        sample += Math.sin(6 * Math.PI * this.phase) * shapeNorm * 0.1;
-                    }
-                    sample /= (1 + shapeNorm * 0.4); // Normalize
-                    break;
-                    
-                case 'square':
-                    // Shape controls pulse width
-                    const pulseWidth = 0.1 + shapeNorm * 0.8; // 10% to 90%
-                    sample = this.phase < pulseWidth ? 1 : -1;
-                    break;
-                    
-                case 'sawtooth':
-                    // Basic saw with shape affecting brightness
-                    sample = 2 * this.phase - 1;
-                    // Simple lowpass effect based on shape
-                    if (shapeNorm < 0.9) {
-                        const cutoff = 1 - shapeNorm;
-                        sample = sample * cutoff + this.lastSample * (1 - cutoff);
-                        this.lastSample = sample;
-                    }
-                    break;
-                    
-                case 'triangle':
-                    // Triangle with shape affecting symmetry
-                    const skew = 0.5 + (shapeNorm - 0.5) * 0.4; // Skew from 0.3 to 0.7
-                    if (this.phase < skew) {
-                        sample = (this.phase / skew) * 2 - 1;
-                    } else {
-                        sample = ((1 - this.phase) / (1 - skew)) * 2 - 1;
-                    }
-                    break;
-            }
-            
-            samples[i] = sample * 0.8; // Scale to prevent clipping
-            
-            // Update phase
-            this.phase += phaseIncrement;
-            if (this.phase >= 1) {
-                this.phase -= 1;
-            }
-        }
-    }
-    
+
     play(note) {
         if (!this.audioContext) {
             this.init();
         }
-        
+
         if (this.isPlaying) {
             this.stop();
         }
-        
+
         this.currentNote = note || this.currentNote;
         const frequency = this.noteToFrequency(this.currentNote);
-        
-        // Reset phase for clean start
-        this.phase = 0;
-        this.lastSample = 0;
-        
-        // Create script processor for custom waveform generation
-        const bufferSize = 256;
-        this.scriptNode = this.audioContext.createScriptProcessor(bufferSize, 0, 1);
-        
-        this.scriptNode.onaudioprocess = (e) => {
-            const output = e.outputBuffer.getChannelData(0);
-            
-            if (this.useWasm && this.wasmOscillator && this.currentWaveform === 'fm-bell') {
-                // Use FM Bell oscillator
-                this.wasmOscillator.process(output, output.length);
-            } else {
-                // Use built-in waveforms
-                this.generateWaveform(output, frequency);
-            }
-        };
-        
-        // Apply gain fade-in to prevent clicks
+
+        Object.values(this.voices).forEach((voice) => {
+            voice.frequency = frequency;
+            voice.phase = 0;
+            voice.lastSample = 0;
+        });
+
+        this.ensureScriptNode();
+
+        // Fade in master gain to avoid clicks
         this.gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
         this.gainNode.gain.linearRampToValueAtTime(
-            this.currentVolume, 
+            this.masterVolume,
             this.audioContext.currentTime + 0.02
         );
-        
-        // Connect and start
+
         this.scriptNode.connect(this.gainNode);
         this.isPlaying = true;
-        
-        // Trigger WASM note on if using WASM
-        if (this.useWasm && this.wasmOscillator && this.currentWaveform === 'fm-bell') {
-            this.wasmOscillator.noteOn(this.currentNote);
-            // Also set the current shape
-            this.wasmOscillator.setShape(this.currentShape);
+
+        const userVoice = this.voices.osc3;
+        if (userVoice.loaded && userVoice.oscillator && typeof userVoice.oscillator.noteOn === 'function') {
+            userVoice.oscillator.noteOn(this.currentNote);
+            this.applyUserParams();
         }
-        
+
         return frequency;
     }
-    
+
+    changeNote(note) {
+        this.currentNote = note;
+        const frequency = this.noteToFrequency(note);
+        Object.values(this.voices).forEach((voice) => {
+            voice.frequency = frequency;
+        });
+
+        const userVoice = this.voices.osc3;
+        if (this.isPlaying && userVoice.loaded && userVoice.oscillator && typeof userVoice.oscillator.noteOn === 'function') {
+            userVoice.oscillator.noteOn(note);
+        }
+    }
+
     stop() {
         if (this.scriptNode && this.isPlaying) {
-            // Fade out to prevent clicks
             this.gainNode.gain.linearRampToValueAtTime(
-                0, 
+                0,
                 this.audioContext.currentTime + 0.02
             );
-            
-            // Disconnect after fade
+
             setTimeout(() => {
                 if (this.scriptNode) {
                     this.scriptNode.disconnect();
-                    this.scriptNode = null;
                 }
             }, 30);
-            
-            // Trigger WASM note off
-            if (this.useWasm && this.wasmOscillator) {
-                this.wasmOscillator.noteOff();
+
+            const userVoice = this.voices.osc3;
+            if (userVoice.loaded && userVoice.oscillator && typeof userVoice.oscillator.noteOff === 'function') {
+                userVoice.oscillator.noteOff();
             }
-            
+
             this.isPlaying = false;
         }
     }
-    
+
     setVolume(value) {
-        this.currentVolume = value / 100; // Convert from 0-100 to 0-1
-        if (this.gainNode && this.isPlaying) {
+        this.masterVolume = value / 100;
+        if (this.gainNode) {
             this.gainNode.gain.linearRampToValueAtTime(
-                this.currentVolume, 
+                this.masterVolume,
                 this.audioContext.currentTime + 0.01
             );
         }
     }
-    
-    setShape(value) {
-        this.currentShape = value;
-        // Update WASM oscillator if using it
-        if (this.useWasm && this.wasmOscillator) {
-            this.wasmOscillator.setShape(value);
-        }
+
+    setBuiltinWaveform(id, waveform) {
+        const voice = this.getVoice(id);
+        if (!voice || voice.type !== 'builtin') return;
+        voice.waveform = waveform;
+        voice.phase = 0;
+        voice.lastSample = 0;
     }
-    
-    async loadWasmOscillator() {
+
+    setBuiltinShape(id, value) {
+        const voice = this.getVoice(id);
+        if (!voice || voice.type !== 'builtin') return;
+        voice.shape = value;
+    }
+
+    setVoiceLevel(id, value) {
+        const voice = this.getVoice(id);
+        if (!voice) return;
+        voice.level = value / 100;
+    }
+
+    async loadUserOscillator(manifest) {
+        const voice = this.voices.osc3;
+        if (!manifest) {
+            return false;
+        }
+
+        // Clean up existing oscillator
+        if (voice.oscillator && typeof voice.oscillator.cleanup === 'function') {
+            voice.oscillator.cleanup();
+        }
+
+        voice.manifest = manifest;
+        voice.params.clear();
+        voice.loaded = false;
+        voice.isFallback = false;
+
         try {
-            // For now, use JavaScript version
-            const { FMBellOscillator } = await import('./fm-bell-js.js');
-            this.wasmOscillator = new FMBellOscillator();
-            
-            this.useWasm = true;
-            this.currentWaveform = 'fm-bell';
-            console.log('FM Bell oscillator loaded (JS version)');
-            return true;
-            
-            // Original WASM loader code (for when emscripten is installed)
-            /*
             const { WasmOscillator } = await import('./wasm-loader.js');
-            this.wasmOscillator = new WasmOscillator();
-            
-            const loaded = await this.wasmOscillator.load();
+            const osc = new WasmOscillator(manifest.wasm?.module || null);
+            const loaded = await osc.load();
             if (loaded) {
-                this.useWasm = true;
-                this.currentWaveform = 'fm-bell';
-                console.log('WASM oscillator loaded and ready');
+                voice.oscillator = osc;
+                voice.loaded = true;
+                this.applyUserParams();
                 return true;
             }
-            */
         } catch (err) {
-            console.error('Failed to load oscillator:', err);
+            console.warn('WASM oscillator load failed, attempting fallback:', err);
         }
+
+        try {
+            if (!manifest.fallback || !manifest.fallback.module) {
+                throw new Error('No fallback module specified');
+            }
+            const module = await import(manifest.fallback.module);
+            const OscClass = module[manifest.fallback.export || 'default'];
+            if (!OscClass) {
+                throw new Error('Fallback oscillator class not found');
+            }
+            voice.oscillator = new OscClass();
+            voice.loaded = true;
+            voice.isFallback = true;
+            this.applyUserParams();
+            console.log('Loaded fallback oscillator implementation');
+            return true;
+        } catch (fallbackErr) {
+            console.error('Failed to load fallback oscillator:', fallbackErr);
+        }
+
+        voice.oscillator = null;
         return false;
     }
-    
-    setWaveform(type) {
-        this.currentWaveform = type;
-        // If switching away from fm-bell, disable WASM mode for built-in waveforms
-        if (type !== 'fm-bell') {
-            this.useWasm = false;
-        } else if (this.wasmOscillator) {
-            this.useWasm = true;
+
+    setUserParam(index, value) {
+        const voice = this.voices.osc3;
+        voice.params.set(index, value);
+
+        if (voice.loaded && voice.oscillator) {
+            if (typeof voice.oscillator.setParam === 'function') {
+                voice.oscillator.setParam(index, value);
+            } else if (index === 0 && typeof voice.oscillator.setShape === 'function') {
+                voice.oscillator.setShape(value);
+            }
         }
     }
-    
-    changeNote(note) {
-        if (this.isPlaying) {
-            // Smoothly transition to new frequency
-            this.currentNote = note;
-            // We'll recreate the oscillator for simplicity
-            // In a production version, we'd modulate the phase increment
-            this.play(note);
+
+    getUserParam(index) {
+        const voice = this.voices.osc3;
+        return voice.params.has(index) ? voice.params.get(index) : 0;
+    }
+
+    hasUserParam(index) {
+        return this.voices.osc3.params.has(index);
+    }
+
+    applyUserParams() {
+        const voice = this.voices.osc3;
+        if (!voice.loaded || !voice.oscillator) {
+            return;
+        }
+
+        for (const [index, value] of voice.params.entries()) {
+            if (typeof voice.oscillator.setParam === 'function') {
+                voice.oscillator.setParam(index, value);
+            } else if (index === 0 && typeof voice.oscillator.setShape === 'function') {
+                voice.oscillator.setShape(value);
+            }
         }
     }
-    
+
+    renderVoices(output, frames) {
+        output.fill(0);
+
+        const voices = Object.values(this.voices);
+        for (let i = 0; i < voices.length; i++) {
+            const voice = voices[i];
+            if (voice.level <= 0 || !voice.frequency) {
+                continue;
+            }
+
+            if (voice.type === 'builtin') {
+                this.renderBuiltinVoice(voice, output, frames);
+            } else if (voice.type === 'user') {
+                this.renderUserVoice(voice, output, frames);
+            }
+        }
+
+        // Simple soft clip to avoid runaway levels
+        for (let i = 0; i < output.length; i++) {
+            output[i] = Math.tanh(output[i]);
+        }
+    }
+
+    renderBuiltinVoice(voice, output, frames) {
+        const phaseIncrement = voice.frequency / this.sampleRate;
+        const shapeNorm = voice.shape / 1023;
+        const level = voice.level;
+
+        for (let i = 0; i < frames; i++) {
+            let sample = 0;
+
+            switch (voice.waveform) {
+                case 'sine': {
+                    sample = Math.sin(2 * Math.PI * voice.phase);
+                    if (shapeNorm > 0) {
+                        sample += Math.sin(4 * Math.PI * voice.phase) * shapeNorm * 0.3;
+                        sample += Math.sin(6 * Math.PI * voice.phase) * shapeNorm * 0.1;
+                        sample /= (1 + shapeNorm * 0.4);
+                    }
+                    break;
+                }
+                case 'square': {
+                    const pulseWidth = 0.1 + shapeNorm * 0.8;
+                    sample = voice.phase < pulseWidth ? 1 : -1;
+                    break;
+                }
+                case 'sawtooth': {
+                    sample = 2 * voice.phase - 1;
+                    if (shapeNorm < 0.9) {
+                        const cutoff = 1 - shapeNorm;
+                        sample = sample * cutoff + voice.lastSample * (1 - cutoff);
+                        voice.lastSample = sample;
+                    } else {
+                        voice.lastSample = sample;
+                    }
+                    break;
+                }
+                case 'triangle': {
+                    const skew = 0.5 + (shapeNorm - 0.5) * 0.4;
+                    if (voice.phase < skew) {
+                        sample = (voice.phase / skew) * 2 - 1;
+                    } else {
+                        sample = ((1 - voice.phase) / (1 - skew)) * 2 - 1;
+                    }
+                    break;
+                }
+                case 'noise': {
+                    sample = (Math.random() * 2 - 1) * (0.5 + shapeNorm * 0.5);
+                    break;
+                }
+                default: {
+                    sample = Math.sin(2 * Math.PI * voice.phase);
+                    break;
+                }
+            }
+
+            output[i] += sample * level;
+
+            voice.phase += phaseIncrement;
+            if (voice.phase >= 1) {
+                voice.phase -= 1;
+            }
+        }
+    }
+
+    renderUserVoice(voice, output, frames) {
+        if (!voice.loaded || !voice.oscillator) {
+            return;
+        }
+
+        const temp = this.ensureTempBuffer(frames);
+        temp.fill(0);
+
+        if (typeof voice.oscillator.process === 'function') {
+            voice.oscillator.process(temp, frames);
+            const level = voice.level;
+            for (let i = 0; i < frames; i++) {
+                output[i] += temp[i] * level;
+            }
+        }
+    }
+
     getWaveformData() {
-        if (!this.analyser) return null;
-        
+        if (!this.analyser) {
+            return null;
+        }
+
         const bufferLength = this.analyser.frequencyBinCount;
         const dataArray = new Float32Array(bufferLength);
         this.analyser.getFloatTimeDomainData(dataArray);
-        
         return dataArray;
     }
 }
 
-// Create global instance
 const audioEngine = new OscillatorEngine();
+window.audioEngine = audioEngine;

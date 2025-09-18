@@ -1,5 +1,5 @@
 export class WasmOscillator {
-    constructor() {
+    constructor(modulePath) {
         this.module = null;
         this.initialized = false;
         
@@ -17,13 +17,19 @@ export class WasmOscillator {
         // Current state
         this.currentNote = 60;
         this.currentShape = 512;
+        this.paramValues = new Map();
+
+        this.modulePath = modulePath;
     }
     
     async load() {
         try {
             // Load the WASM module
-            const FMBellModule = await import('../wasm/fm-bell.js');
-            this.module = await FMBellModule.default();
+            if (!this.modulePath) {
+                throw new Error('No WASM module path provided');
+            }
+            const moduleFactory = await import(this.modulePath);
+            this.module = await moduleFactory.default();
             
             // Get function pointers
             this.oscInit = this.module.cwrap('OSC_INIT', null, ['number', 'number']);
@@ -41,7 +47,8 @@ export class WasmOscillator {
             // Initialize oscillator
             this.oscInit(0, 0);
             this.initialized = true;
-            
+            this.applyStoredParams();
+
             console.log('FM Bell WASM oscillator loaded successfully');
             return true;
         } catch (err) {
@@ -61,11 +68,13 @@ export class WasmOscillator {
         
         // Write to params struct
         this.module.HEAPF32[this.paramsPtr >> 2] = pitch;
-        this.module.HEAPU16[(this.paramsPtr + 4) >> 1] = this.currentShape;
+        const shapeValue = this.paramValues.has(0) ? this.paramValues.get(0) : this.currentShape;
+        this.module.HEAPU16[(this.paramsPtr + 4) >> 1] = shapeValue;
         this.module.HEAPU16[(this.paramsPtr + 6) >> 1] = 0; // shiftshape
         
         // Trigger note on
         this.oscNoteOn(this.paramsPtr);
+        this.applyStoredParams();
     }
     
     noteOff() {
@@ -73,13 +82,26 @@ export class WasmOscillator {
         this.oscNoteOff(this.paramsPtr);
     }
     
+    setParam(index, value) {
+        this.paramValues.set(index, value);
+
+        if (!this.initialized) {
+            if (index === 0) {
+                this.currentShape = value;
+            }
+            return;
+        }
+
+        this.oscParam(index, value);
+
+        if (index === 0) {
+            this.currentShape = value;
+            this.module.HEAPU16[(this.paramsPtr + 4) >> 1] = value;
+        }
+    }
+
     setShape(value) {
-        if (!this.initialized) return;
-        
-        this.currentShape = value;
-        
-        // Update shape parameter (maps to PARAM_RATIO)
-        this.oscParam(0, value);
+        this.setParam(0, value);
     }
     
     process(outputArray, frames) {
@@ -91,7 +113,8 @@ export class WasmOscillator {
         
         // Update params struct
         this.module.HEAPF32[this.paramsPtr >> 2] = pitch;
-        this.module.HEAPU16[(this.paramsPtr + 4) >> 1] = this.currentShape;
+        const shapeValue = this.paramValues.has(0) ? this.paramValues.get(0) : this.currentShape;
+        this.module.HEAPU16[(this.paramsPtr + 4) >> 1] = shapeValue;
         
         // Process audio
         this.oscCycle(this.paramsPtr, this.outputBufferPtr, frames);
@@ -100,6 +123,16 @@ export class WasmOscillator {
         const outputBuffer = new Int32Array(this.module.HEAP32.buffer, this.outputBufferPtr, frames);
         for (let i = 0; i < frames; i++) {
             outputArray[i] = outputBuffer[i] / 2147483647.0;
+        }
+    }
+
+    applyStoredParams() {
+        if (!this.initialized) {
+            return;
+        }
+
+        for (const [index, value] of this.paramValues.entries()) {
+            this.oscParam(index, value);
         }
     }
     
