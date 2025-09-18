@@ -96,6 +96,19 @@ h1 {
     gap: 12px;
 }
 
+.parameter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.parameter-group h3 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #555;
+}
+
 .parameter-control {
     display: flex;
     flex-direction: column;

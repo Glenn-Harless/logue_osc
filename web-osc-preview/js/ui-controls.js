@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await audioEngine.loadUserOscillator(manifest);
             currentManifest = manifest;
             renderUserParameters(manifest);
+            applyManifestDefaults(manifest);
             const voice = audioEngine.getVoice('osc3');
             const usingFallback = result.status === 'fallback' || voice.isFallback;
             userStatus.textContent = usingFallback ? 'Loaded (JS fallback)' : 'Loaded (WASM)';
@@ -136,6 +137,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const groups = new Map();
         manifest.parameters.forEach((param) => {
             const defaultValue = param.default ?? param.min ?? 0;
             const initialValue = audioEngine.hasUserParam(param.index)
@@ -144,8 +146,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             audioEngine.setUserParam(param.index, initialValue);
 
+            const groupName = param.group || 'General';
+            if (!groups.has(groupName)) {
+                const groupWrapper = document.createElement('div');
+                groupWrapper.className = 'parameter-group';
+
+                const groupHeading = document.createElement('h3');
+                groupHeading.textContent = groupName;
+                groupWrapper.appendChild(groupHeading);
+
+                const groupBody = document.createElement('div');
+                groupBody.className = 'parameter-grid';
+                groupWrapper.appendChild(groupBody);
+
+                userParamContainer.appendChild(groupWrapper);
+                groups.set(groupName, groupBody);
+            }
+
             createRangeControl({
-                container: userParamContainer,
+                container: groups.get(param.group || 'General'),
                 label: param.name,
                 min: param.min,
                 max: param.max,
@@ -154,6 +173,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 onInput: (value) => audioEngine.setUserParam(param.index, value)
             });
         });
+    }
+
+    function applyManifestDefaults(manifest) {
+        if (manifest.defaultLevel !== undefined) {
+            const level = Math.max(0, Math.min(100, Math.round(manifest.defaultLevel)));
+            userLevelSlider.value = String(level);
+            userLevelValue.textContent = `${level}%`;
+            audioEngine.setVoiceLevel('osc3', level);
+        }
     }
 
     function createRangeControl({ container, label, min, max, value, description, onInput }) {

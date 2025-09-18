@@ -94,12 +94,14 @@ The web-based preview tool (`web-osc-preview/`) allows you to:
 ### Oscillator Metadata
 
 - `web-osc-preview/manifests/index.json` lists available custom oscillators for the preview UI.
-- `web-osc-preview/manifests/<oscillator>.json` describes each user oscillator's `OSC_PARAM` slots and build artefacts.
+- `web-osc-preview/manifests/<oscillator>.json` describes each user oscillator's `OSC_PARAM` slots, UI groupings, and build artefacts (see `schema.json`).
+- `defaultLevel` can be used to suggest an initial mix level (percentage) for the user slot.
 - Manifests drive the web UI so new oscillators only need C code + metadata to appear in the preview.
 
 ### Development Utilities
 
 - `scripts/dev_preview.py` – optional helper that rebuilds the active logue SDK oscillator to WASM (using Emscripten) and launches the preview server.
+- `scripts/validate_manifests.py` – sanity-check manifest files against the expected schema.
 
 ## Documentation
 
