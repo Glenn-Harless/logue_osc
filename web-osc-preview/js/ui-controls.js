@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Oscillator controls
     const osc1Controls = createBuiltInBindings('osc1');
     const osc2Controls = createBuiltInBindings('osc2');
     const userSelect = document.getElementById('osc3-select');
@@ -23,14 +22,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     const userLevelValue = document.getElementById('osc3-level-value');
     const userParamContainer = document.getElementById('osc3-parameters');
 
-    if (!userSelect || !userLoadBtn || !userStatus || !userLevelSlider || !userLevelValue || !userParamContainer) {
-        console.error('User oscillator controls missing from DOM');
+    const seqToggleBtn = document.getElementById('seq-toggle');
+    const seqPatternSelect = document.getElementById('seq-pattern');
+    const seqTempoSlider = document.getElementById('seq-tempo');
+    const seqTempoValue = document.getElementById('seq-tempo-value');
+    const seqOctaveSelect = document.getElementById('seq-octave');
+    const seqStatus = document.getElementById('seq-status');
+
+    const modToggleBtn = document.getElementById('mod-toggle');
+    const modTargetSelect = document.getElementById('mod-target');
+    const modRateSlider = document.getElementById('mod-rate');
+    const modRateValue = document.getElementById('mod-rate-value');
+    const modDepthSlider = document.getElementById('mod-depth');
+    const modDepthValue = document.getElementById('mod-depth-value');
+    const modStatus = document.getElementById('mod-status');
+
+    if (!userSelect || !userLoadBtn || !userStatus || !userLevelSlider || !userLevelValue || !userParamContainer
+        || !seqToggleBtn || !seqPatternSelect || !seqTempoSlider || !seqTempoValue || !seqOctaveSelect || !seqStatus
+        || !modToggleBtn || !modTargetSelect || !modRateSlider || !modRateValue || !modDepthSlider || !modDepthValue || !modStatus) {
+        console.error('Test tool or user oscillator controls missing from DOM');
         return;
     }
 
     const manifestCache = new Map();
     let manifestIndex = [];
     let currentManifest = null;
+    let currentManifestParams = [];
+
+    const modTargetMeta = new Map();
+    const modState = {
+        active: false,
+        frameId: null,
+        meta: null,
+        baseValue: 0,
+        amplitude: 0,
+        phase: 0,
+        lastTime: 0,
+        rateHz: 0
+    };
+
+    const SEQUENCER_PATTERNS = {
+        'arp-up': [0, 4, 7, 12],
+        'arp-down': [12, 7, 4, 0],
+        'pentatonic': [0, 2, 4, 7, 9, 12],
+        'chord': [0, 3, 7, 10],
+        'random': []
+    };
+
+    const sequencerState = {
+        active: false,
+        timerId: null,
+        baseNote: 60,
+        step: 0,
+        startedEngine: false
+    };
+
+    let animationId = null;
 
     try {
         manifestIndex = await fetchManifestIndex();
@@ -39,15 +86,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Failed to load oscillator manifest index:', err);
     }
 
-    // Initialize engine with default slider positions
     osc1Controls.applyInitial(audioEngine.getVoice('osc1'));
     osc2Controls.applyInitial(audioEngine.getVoice('osc2'));
     userLevelValue.textContent = `${userLevelSlider.value}%`;
     audioEngine.setVoiceLevel('osc3', parseInt(userLevelSlider.value, 10));
     masterVolumeValue.textContent = `${masterVolumeSlider.value}%`;
     audioEngine.setVolume(parseInt(masterVolumeSlider.value, 10));
+    updateTempoDisplay();
+    updateModRateDisplay();
+    updateModDepthDisplay();
+    updateModTargets(null);
 
-    // Play button handler
     playBtn.addEventListener('click', async () => {
         const note = parseInt(noteSelect.value, 10);
         const frequency = await audioEngine.play(note);
@@ -58,18 +107,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         drawWaveform();
     });
 
-    // Stop button handler
     stopBtn.addEventListener('click', async () => {
         await audioEngine.stop();
+        stopSequencer({ stopAudio: false });
+        stopModulation({ resetValue: true });
         playBtn.disabled = false;
         stopBtn.disabled = true;
         updateTransportStatus('Stopped', '--');
         cancelWaveform();
     });
 
-    // Note change handler
     noteSelect.addEventListener('change', (event) => {
         const note = parseInt(event.target.value, 10);
+        sequencerState.baseNote = note;
         audioEngine.changeNote(note);
         if (audioEngine.isPlaying) {
             const frequency = audioEngine.noteToFrequency(note);
@@ -77,25 +127,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Master volume handler
     masterVolumeSlider.addEventListener('input', (event) => {
         const value = parseInt(event.target.value, 10);
         masterVolumeValue.textContent = `${value}%`;
         audioEngine.setVolume(value);
     });
 
-    // Built-in oscillator handlers
     osc1Controls.bind();
     osc2Controls.bind();
 
-    // User oscillator level
     userLevelSlider.addEventListener('input', (event) => {
         const value = parseInt(event.target.value, 10);
         userLevelValue.textContent = `${value}%`;
         audioEngine.setVoiceLevel('osc3', value);
     });
 
-    // User oscillator loading
     userLoadBtn.addEventListener('click', async () => {
         const selectedId = userSelect.value;
         const selectedMeta = manifestIndex.find((entry) => entry.id === selectedId);
@@ -112,6 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const manifest = await loadManifest(selectedMeta.manifest, manifestCache);
             const result = await audioEngine.loadUserOscillator(manifest);
             currentManifest = manifest;
+            currentManifestParams = Array.isArray(manifest.parameters) ? manifest.parameters : [];
             renderUserParameters(manifest);
             applyManifestDefaults(manifest);
             const voice = audioEngine.getVoice('osc3');
@@ -121,11 +168,57 @@ document.addEventListener('DOMContentLoaded', async () => {
             userLoadBtn.disabled = false;
         } catch (err) {
             console.error('Failed to load user oscillator:', err);
+            currentManifest = null;
+            currentManifestParams = [];
+            updateModTargets(null);
             userStatus.textContent = 'Load failed';
             userLoadBtn.textContent = 'Retry';
             userLoadBtn.disabled = false;
         }
     });
+
+    seqTempoSlider.addEventListener('input', () => {
+        updateTempoDisplay();
+    });
+
+    seqToggleBtn.addEventListener('click', async () => {
+        if (sequencerState.active) {
+            stopSequencer({ stopAudio: true });
+        } else {
+            await startSequencer();
+        }
+    });
+
+    modRateSlider.addEventListener('input', updateModRateDisplay);
+    modDepthSlider.addEventListener('input', updateModDepthDisplay);
+
+    modTargetSelect.addEventListener('change', () => {
+        if (modState.active) {
+            stopModulation({ resetValue: true });
+        }
+        modStatus.textContent = modTargetSelect.value ? 'Ready' : 'Idle';
+    });
+
+    modToggleBtn.addEventListener('click', () => {
+        if (modState.active) {
+            stopModulation({ resetValue: true });
+        } else {
+            startModulation();
+        }
+    });
+
+    function updateTempoDisplay() {
+        seqTempoValue.textContent = `${seqTempoSlider.value} BPM`;
+    }
+
+    function updateModRateDisplay() {
+        const rateHz = parseInt(modRateSlider.value, 10) / 100;
+        modRateValue.textContent = `${rateHz.toFixed(2)} Hz`;
+    }
+
+    function updateModDepthDisplay() {
+        modDepthValue.textContent = `${modDepthSlider.value}%`;
+    }
 
     function renderUserParameters(manifest) {
         userParamContainer.innerHTML = '';
@@ -164,12 +257,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             createRangeControl({
-                container: groups.get(param.group || 'General'),
+                container: groups.get(groupName),
                 label: param.name,
                 min: param.min,
                 max: param.max,
                 value: initialValue,
                 description: param.description,
+                paramIndex: param.index,
                 onInput: (value) => audioEngine.setUserParam(param.index, value)
             });
         });
@@ -182,9 +276,171 @@ document.addEventListener('DOMContentLoaded', async () => {
             userLevelValue.textContent = `${level}%`;
             audioEngine.setVoiceLevel('osc3', level);
         }
+        updateModTargets(manifest);
     }
 
-    function createRangeControl({ container, label, min, max, value, description, onInput }) {
+    function startModulation() {
+        const targetId = modTargetSelect.value;
+        if (!targetId) {
+            alert('Select a parameter to modulate.');
+            return;
+        }
+
+        const meta = modTargetMeta.get(targetId);
+        if (!meta) {
+            alert('Selected parameter is unavailable.');
+            return;
+        }
+
+        const depthPercent = parseInt(modDepthSlider.value, 10) / 100;
+        if (depthPercent <= 0) {
+            alert('Increase modulation depth to hear changes.');
+            return;
+        }
+
+        const baseValue = meta.getter();
+        const amplitude = ((meta.max - meta.min) * depthPercent) / 2;
+        if (amplitude <= 0) {
+            alert('Depth is too small for this parameter range.');
+            return;
+        }
+
+        modState.active = true;
+        modState.meta = meta;
+        modState.baseValue = baseValue;
+        modState.amplitude = amplitude;
+        modState.phase = 0;
+        modState.lastTime = 0;
+        modState.rateHz = parseInt(modRateSlider.value, 10) / 100;
+
+        modToggleBtn.textContent = 'Stop Modulation';
+        modStatus.textContent = 'Running';
+        modState.frameId = requestAnimationFrame(modulationLoop);
+    }
+
+    function modulationLoop(timestamp) {
+        if (!modState.active || !modState.meta) {
+            return;
+        }
+
+        if (!modState.lastTime) {
+            modState.lastTime = timestamp;
+        }
+        const deltaSeconds = (timestamp - modState.lastTime) / 1000;
+        modState.lastTime = timestamp;
+
+        modState.phase += 2 * Math.PI * modState.rateHz * deltaSeconds;
+        const rawValue = modState.baseValue + Math.sin(modState.phase) * modState.amplitude;
+        const clamped = Math.round(Math.min(modState.meta.max, Math.max(modState.meta.min, rawValue)));
+
+        modState.meta.setter(clamped);
+        modState.frameId = requestAnimationFrame(modulationLoop);
+    }
+
+    function stopModulation({ resetValue } = { resetValue: false }) {
+        if (modState.frameId) {
+            cancelAnimationFrame(modState.frameId);
+            modState.frameId = null;
+        }
+        if (!modState.active) {
+            return;
+        }
+
+        if (resetValue && modState.meta) {
+            modState.meta.setter(Math.round(modState.baseValue));
+        }
+
+        modState.active = false;
+        modState.meta = null;
+        modToggleBtn.textContent = 'Start Modulation';
+        modStatus.textContent = modTargetSelect.value ? 'Ready' : 'Idle';
+    }
+
+    async function startSequencer() {
+        if (sequencerState.active) {
+            return;
+        }
+
+        const baseNote = parseInt(noteSelect.value, 10);
+        sequencerState.baseNote = baseNote;
+        sequencerState.step = 0;
+        sequencerState.startedEngine = !audioEngine.isPlaying;
+        sequencerState.active = true;
+
+        if (sequencerState.startedEngine) {
+            await audioEngine.play(baseNote);
+        } else {
+            audioEngine.changeNote(baseNote);
+        }
+
+        updateTransportStatus('Playing', audioEngine.noteToFrequency(baseNote).toFixed(2));
+        seqToggleBtn.textContent = 'Stop Sequencer';
+        seqStatus.textContent = 'Running';
+        scheduleNextSequencerStep();
+    }
+
+    function stopSequencer({ stopAudio } = { stopAudio: false }) {
+        if (sequencerState.timerId) {
+            clearTimeout(sequencerState.timerId);
+            sequencerState.timerId = null;
+        }
+        if (!sequencerState.active) {
+            return;
+        }
+
+        const shouldStopAudio = stopAudio && sequencerState.startedEngine;
+        sequencerState.active = false;
+        const wasStartedEngine = sequencerState.startedEngine;
+        sequencerState.startedEngine = false;
+        seqToggleBtn.textContent = 'Start Sequencer';
+        seqStatus.textContent = 'Stopped';
+
+        if (shouldStopAudio) {
+            audioEngine.stop();
+        } else if (wasStartedEngine) {
+            audioEngine.stop();
+        }
+    }
+
+    function scheduleNextSequencerStep() {
+        if (!sequencerState.active) {
+            return;
+        }
+
+        const tempoBpm = parseInt(seqTempoSlider.value, 10);
+        const intervalMs = (60 / tempoBpm) * 1000;
+
+        sequencerState.timerId = setTimeout(async () => {
+            if (!sequencerState.active) {
+                return;
+            }
+            sequencerState.step += 1;
+            const nextNote = computeSequencerNote(sequencerState.step, sequencerState.baseNote);
+            await audioEngine.changeNote(nextNote);
+            updateTransportStatus('Playing', audioEngine.noteToFrequency(nextNote).toFixed(2));
+            scheduleNextSequencerStep();
+        }, intervalMs);
+    }
+
+    function computeSequencerNote(stepIndex, baseNote) {
+        const patternId = seqPatternSelect.value;
+        const offsets = SEQUENCER_PATTERNS[patternId] || [0];
+        if (patternId === 'random') {
+            const span = parseInt(seqOctaveSelect.value, 10) + 1;
+            const maxOffset = 12 * span;
+            const offset = Math.floor(Math.random() * (maxOffset + 1));
+            return baseNote + offset;
+        }
+
+        const octaveSpan = parseInt(seqOctaveSelect.value, 10) + 1;
+        const patternLength = offsets.length;
+        const patternIndex = stepIndex % patternLength;
+        const octave = Math.floor((stepIndex / patternLength) % octaveSpan);
+        const offset = offsets[patternIndex] + octave * 12;
+        return baseNote + offset;
+    }
+
+    function createRangeControl({ container, label, min, max, value, description, onInput, paramIndex }) {
         const wrapper = document.createElement('div');
         wrapper.className = 'parameter-control';
 
@@ -197,11 +453,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         slider.min = min;
         slider.max = max;
         slider.value = value;
+        if (typeof paramIndex === 'number') {
+            slider.dataset.paramIndex = String(paramIndex);
+        }
         wrapper.appendChild(slider);
 
         const valueEl = document.createElement('div');
         valueEl.className = 'parameter-value';
         valueEl.textContent = `${value}`;
+        if (typeof paramIndex === 'number') {
+            valueEl.dataset.paramIndex = String(paramIndex);
+        }
         wrapper.appendChild(valueEl);
 
         if (description) {
@@ -231,6 +493,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             throw new Error(`Missing controls for ${id}`);
         }
 
+        const updateShapeDisplay = (value) => {
+            shapeSlider.value = String(value);
+            shapeValue.textContent = `${value}`;
+        };
+
         return {
             bind() {
                 waveformSelect.addEventListener('change', (event) => {
@@ -252,11 +519,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             applyInitial(voice) {
                 if (!voice) return;
                 waveformSelect.value = voice.waveform;
-                shapeSlider.value = voice.shape;
-                shapeValue.textContent = `${voice.shape}`;
+                updateShapeDisplay(voice.shape);
                 const levelPercent = Math.round(voice.level * 100);
                 levelSlider.value = levelPercent;
                 levelValue.textContent = `${levelPercent}%`;
+            },
+            getShapeValue() {
+                return parseInt(shapeSlider.value, 10);
+            },
+            setShapeValue(value) {
+                updateShapeDisplay(value);
             }
         };
     }
@@ -303,14 +575,100 @@ document.addEventListener('DOMContentLoaded', async () => {
         return manifest;
     }
 
+    function updateModTargets(manifest) {
+        const previousTarget = modTargetSelect.value;
+        modTargetMeta.clear();
+        modTargetSelect.innerHTML = '';
+
+        const noneOption = document.createElement('option');
+        noneOption.value = '';
+        noneOption.textContent = 'None';
+        modTargetSelect.appendChild(noneOption);
+
+        registerBuiltinModTargets();
+
+        if (manifest && Array.isArray(manifest.parameters)) {
+            manifest.parameters.forEach((param) => {
+                modTargetMeta.set(`param-${param.index}`, {
+                    type: 'user',
+                    index: param.index,
+                    min: param.min,
+                    max: param.max,
+                    getter: () => audioEngine.getUserParam(param.index),
+                    setter: (value) => {
+                        audioEngine.setUserParam(param.index, value);
+                        updateUserParamSlider(param.index, value);
+                    }
+                });
+
+                const option = document.createElement('option');
+                option.value = `param-${param.index}`;
+                option.textContent = `Osc 3: ${param.name}`;
+                modTargetSelect.appendChild(option);
+            });
+        }
+
+        if (previousTarget && modTargetMeta.has(previousTarget)) {
+            modTargetSelect.value = previousTarget;
+        } else {
+            modTargetSelect.value = '';
+            stopModulation({ resetValue: false });
+        }
+
+        modStatus.textContent = modTargetSelect.value ? 'Ready' : 'Idle';
+    }
+
+    function registerBuiltinModTargets() {
+        modTargetMeta.set('osc1-shape', {
+            type: 'builtin',
+            min: 0,
+            max: 1023,
+            getter: () => osc1Controls.getShapeValue(),
+            setter: (value) => {
+                osc1Controls.setShapeValue(value);
+                audioEngine.setBuiltinShape('osc1', value);
+            }
+        });
+
+        modTargetMeta.set('osc2-shape', {
+            type: 'builtin',
+            min: 0,
+            max: 1023,
+            getter: () => osc2Controls.getShapeValue(),
+            setter: (value) => {
+                osc2Controls.setShapeValue(value);
+                audioEngine.setBuiltinShape('osc2', value);
+            }
+        });
+
+        const option1 = document.createElement('option');
+        option1.value = 'osc1-shape';
+        option1.textContent = 'Osc 1 Shape';
+        modTargetSelect.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = 'osc2-shape';
+        option2.textContent = 'Osc 2 Shape';
+        modTargetSelect.appendChild(option2);
+    }
+
+    function updateUserParamSlider(paramIndex, value) {
+        const slider = userParamContainer.querySelector(`input[data-param-index="${paramIndex}"]`);
+        if (slider) {
+            slider.value = String(value);
+            const valueEl = slider.parentElement.querySelector(`.parameter-value[data-param-index="${paramIndex}"]`);
+            if (valueEl) {
+                valueEl.textContent = `${value}`;
+            }
+        }
+    }
+
     function updateTransportStatus(state, frequency) {
         const statusSpan = document.getElementById('status');
         const frequencySpan = document.getElementById('frequency');
         if (statusSpan) statusSpan.textContent = state;
         if (frequencySpan) frequencySpan.textContent = frequency;
     }
-
-    let animationId = null;
 
     function drawWaveform() {
         const data = audioEngine.getWaveformData();
@@ -394,14 +752,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             `O2:${osc2.waveform}@${Math.round(osc2.level * 100)}%`
         ];
         if (osc3.loaded) {
-            const manifestName = currentManifest ? currentManifest.name || "user" : 'user';
+            const manifestName = currentManifest ? currentManifest.name || 'user' : 'user';
             summary.push(`O3:${manifestName}${osc3.isFallback ? '(js)' : '(wasm)'}`);
         } else {
             summary.push('O3:empty');
         }
         return summary.join(' | ');
     }
-
-    // Prime waveform canvas
-    cancelWaveform();
 });

@@ -109,7 +109,69 @@
                 <div class="parameter-grid" id="osc3-parameters"></div>
             </section>
         </div>
-        
+
+        <section class="tool-card">
+            <header>
+                <h2>Test Tools</h2>
+                <p class="osc-subtitle">Sequence notes and sweep parameters</p>
+            </header>
+
+            <div class="tool-section">
+                <h3>Sequencer</h3>
+                <div class="control-group">
+                    <label for="seq-pattern">Pattern:</label>
+                    <select id="seq-pattern">
+                        <option value="arp-up">Arp Up</option>
+                        <option value="arp-down">Arp Down</option>
+                        <option value="pentatonic">Pentatonic</option>
+                        <option value="chord">Seventh Chord</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="seq-tempo">Tempo:</label>
+                    <input type="range" id="seq-tempo" min="40" max="200" value="110">
+                    <span id="seq-tempo-value">110 BPM</span>
+                </div>
+                <div class="control-group">
+                    <label for="seq-octave">Octave Span:</label>
+                    <select id="seq-octave">
+                        <option value="0">1</option>
+                        <option value="1">2</option>
+                        <option value="2">3</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <button id="seq-toggle" class="btn">Start Sequencer</button>
+                    <span id="seq-status" class="tool-status">Stopped</span>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>Auto Modulation</h3>
+                <div class="control-group">
+                    <label for="mod-target">Parameter:</label>
+                    <select id="mod-target">
+                        <option value="">None</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="mod-rate">Rate:</label>
+                    <input type="range" id="mod-rate" min="10" max="500" value="120">
+                    <span id="mod-rate-value">1.2 Hz</span>
+                </div>
+                <div class="control-group">
+                    <label for="mod-depth">Depth:</label>
+                    <input type="range" id="mod-depth" min="0" max="100" value="60">
+                    <span id="mod-depth-value">60%</span>
+                </div>
+                <div class="control-group">
+                    <button id="mod-toggle" class="btn">Start Modulation</button>
+                    <span id="mod-status" class="tool-status">Idle</span>
+                </div>
+            </div>
+        </section>
+
         <div class="visualizer">
             <canvas id="waveform-display" width="800" height="200"></canvas>
         </div>

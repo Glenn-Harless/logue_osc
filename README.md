@@ -68,6 +68,7 @@ The web-based preview tool (`web-osc-preview/`) allows you to:
 - Dynamic parameter panel sourced from logue manifests (`web-osc-preview/manifests/`)
 - Waveform visualization
 - Loads logue SDK C oscillators through Emscripten WASM (with JS fallback for development)
+- Integrated step sequencer and auto-modulation tools for quick patch auditioning
 
 ## Development
 
@@ -102,6 +103,11 @@ The web-based preview tool (`web-osc-preview/`) allows you to:
 
 - `scripts/dev_preview.py` – optional helper that rebuilds the active logue SDK oscillator to WASM (using Emscripten) and launches the preview server.
 - `scripts/validate_manifests.py` – sanity-check manifest files against the expected schema.
+
+### In-Browser Test Tools
+
+- **Sequencer** – choose a pattern, tempo, and octave span to hear how the patch behaves across notes. The sequencer automatically starts/stops the audio engine as needed.
+- **Auto Modulation** – sweep oscillator parameters (built-in shapes or user `OSC_PARAM`s) with a sine LFO by selecting a target, rate, and depth.
 
 ## Documentation
 
