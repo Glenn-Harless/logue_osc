@@ -48,9 +48,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     audioEngine.setVolume(parseInt(masterVolumeSlider.value, 10));
 
     // Play button handler
-    playBtn.addEventListener('click', () => {
+    playBtn.addEventListener('click', async () => {
         const note = parseInt(noteSelect.value, 10);
-        const frequency = audioEngine.play(note);
+        const frequency = await audioEngine.play(note);
 
         playBtn.disabled = true;
         stopBtn.disabled = false;
@@ -59,8 +59,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Stop button handler
-    stopBtn.addEventListener('click', () => {
-        audioEngine.stop();
+    stopBtn.addEventListener('click', async () => {
+        await audioEngine.stop();
         playBtn.disabled = false;
         stopBtn.disabled = true;
         updateTransportStatus('Stopped', '--');
@@ -110,17 +110,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const manifest = await loadManifest(selectedMeta.manifest, manifestCache);
-            const loaded = await audioEngine.loadUserOscillator(manifest);
-            if (loaded) {
-                currentManifest = manifest;
-                renderUserParameters(manifest);
-                const voice = audioEngine.getVoice('osc3');
-                userStatus.textContent = voice.isFallback ? 'Loaded (JS fallback)' : 'Loaded (WASM)';
-                userLoadBtn.textContent = 'Reload';
-                userLoadBtn.disabled = false;
-            } else {
-                throw new Error('Load failed');
-            }
+            const result = await audioEngine.loadUserOscillator(manifest);
+            currentManifest = manifest;
+            renderUserParameters(manifest);
+            const voice = audioEngine.getVoice('osc3');
+            const usingFallback = result.status === 'fallback' || voice.isFallback;
+            userStatus.textContent = usingFallback ? 'Loaded (JS fallback)' : 'Loaded (WASM)';
+            userLoadBtn.textContent = 'Reload';
+            userLoadBtn.disabled = false;
         } catch (err) {
             console.error('Failed to load user oscillator:', err);
             userStatus.textContent = 'Load failed';

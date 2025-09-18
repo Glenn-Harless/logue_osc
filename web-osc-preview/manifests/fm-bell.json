@@ -7,7 +7,7 @@
     "module": "../wasm/fm-bell.js"
   },
   "fallback": {
-    "module": "./fm-bell-js.js",
+    "module": "js/fm-bell-js.js",
     "export": "FMBellOscillator"
   },
   "parameters": [

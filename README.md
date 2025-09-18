@@ -64,6 +64,7 @@ The web-based preview tool (`web-osc-preview/`) allows you to:
 
 ### Features
 - Web Audio API at 48kHz (matching hardware)
+- AudioWorklet-based mixer for stable multi-oscillator playback
 - Dynamic parameter panel sourced from logue manifests (`web-osc-preview/manifests/`)
 - Waveform visualization
 - Loads logue SDK C oscillators through Emscripten WASM (with JS fallback for development)
