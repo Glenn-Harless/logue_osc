@@ -172,6 +172,35 @@
             </div>
         </section>
 
+        <section class="tool-card">
+            <header>
+                <h2>Presets</h2>
+                <p class="osc-subtitle">Capture and recall oscillator mixes</p>
+            </header>
+
+            <div class="tool-section">
+                <div class="control-group">
+                    <label for="preset-name">Name:</label>
+                    <input type="text" id="preset-name" placeholder="My FM Pad">
+                </div>
+                <div class="control-group">
+                    <button id="preset-save" class="btn">Save Preset</button>
+                    <button id="preset-clear" class="btn">Clear All</button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <div class="control-group">
+                    <label for="preset-list">Stored Presets:</label>
+                    <select id="preset-list"></select>
+                </div>
+                <div class="control-group">
+                    <button id="preset-load" class="btn">Load Preset</button>
+                    <button id="preset-delete" class="btn btn-danger">Delete Preset</button>
+                </div>
+            </div>
+        </section>
+
         <div class="visualizer">
             <canvas id="waveform-display" width="800" height="200"></canvas>
         </div>

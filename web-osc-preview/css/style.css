@@ -90,6 +90,15 @@ h1 {
     color: #666;
 }
 
+.btn-danger {
+    background-color: #d32f2f;
+    color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background-color: #b71c1c;
+}
+
 .osc-card header {
     display: flex;
     flex-direction: column;

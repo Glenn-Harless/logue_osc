@@ -37,9 +37,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modDepthValue = document.getElementById('mod-depth-value');
     const modStatus = document.getElementById('mod-status');
 
+    const presetNameInput = document.getElementById('preset-name');
+    const presetSaveBtn = document.getElementById('preset-save');
+    const presetClearBtn = document.getElementById('preset-clear');
+    const presetListSelect = document.getElementById('preset-list');
+    const presetLoadBtn = document.getElementById('preset-load');
+    const presetDeleteBtn = document.getElementById('preset-delete');
+
     if (!userSelect || !userLoadBtn || !userStatus || !userLevelSlider || !userLevelValue || !userParamContainer
         || !seqToggleBtn || !seqPatternSelect || !seqTempoSlider || !seqTempoValue || !seqOctaveSelect || !seqStatus
-        || !modToggleBtn || !modTargetSelect || !modRateSlider || !modRateValue || !modDepthSlider || !modDepthValue || !modStatus) {
+        || !modToggleBtn || !modTargetSelect || !modRateSlider || !modRateValue || !modDepthSlider || !modDepthValue || !modStatus
+        || !presetNameInput || !presetSaveBtn || !presetClearBtn || !presetListSelect || !presetLoadBtn || !presetDeleteBtn) {
         console.error('Test tool or user oscillator controls missing from DOM');
         return;
     }
@@ -76,6 +84,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         step: 0,
         startedEngine: false
     };
+
+    const presetStore = createPresetStore();
+    refreshPresetList();
 
     let animationId = null;
 
@@ -150,31 +161,38 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        userLoadBtn.disabled = true;
-        userLoadBtn.textContent = 'Loading...';
-        userStatus.textContent = 'Loading manifest...';
 
-        try {
-            const manifest = await loadManifest(selectedMeta.manifest, manifestCache);
-            const result = await audioEngine.loadUserOscillator(manifest);
-            currentManifest = manifest;
-            currentManifestParams = Array.isArray(manifest.parameters) ? manifest.parameters : [];
-            renderUserParameters(manifest);
-            applyManifestDefaults(manifest);
-            const voice = audioEngine.getVoice('osc3');
-            const usingFallback = result.status === 'fallback' || voice.isFallback;
-            userStatus.textContent = usingFallback ? 'Loaded (JS fallback)' : 'Loaded (WASM)';
-            userLoadBtn.textContent = 'Reload';
-            userLoadBtn.disabled = false;
-        } catch (err) {
-            console.error('Failed to load user oscillator:', err);
-            currentManifest = null;
-            currentManifestParams = [];
-            updateModTargets(null);
-            userStatus.textContent = 'Load failed';
-            userLoadBtn.textContent = 'Retry';
-            userLoadBtn.disabled = false;
-        }
+        const loadManifestAndApply = async (manifestEntry) => {
+            userLoadBtn.disabled = true;
+            userLoadBtn.textContent = 'Loading...';
+            userStatus.textContent = 'Loading manifest...';
+
+            try {
+                const manifest = await loadManifest(manifestEntry.manifest, manifestCache);
+                const result = await audioEngine.loadUserOscillator(manifest);
+                currentManifest = manifest;
+                currentManifestParams = Array.isArray(manifest.parameters) ? manifest.parameters : [];
+                renderUserParameters(manifest);
+                applyManifestDefaults(manifest);
+                const voice = audioEngine.getVoice('osc3');
+                const usingFallback = result.status === 'fallback' || voice.isFallback;
+                userStatus.textContent = usingFallback ? 'Loaded (JS fallback)' : 'Loaded (WASM)';
+                userLoadBtn.textContent = 'Reload';
+                userLoadBtn.disabled = false;
+                return true;
+            } catch (err) {
+                console.error('Failed to load user oscillator:', err);
+                currentManifest = null;
+                currentManifestParams = [];
+                updateModTargets(null);
+                userStatus.textContent = 'Load failed';
+                userLoadBtn.textContent = 'Retry';
+                userLoadBtn.disabled = false;
+                return false;
+            }
+        };
+
+        await loadManifestAndApply(selectedMeta);
     });
 
     seqTempoSlider.addEventListener('input', () => {
@@ -207,6 +225,42 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    presetSaveBtn.addEventListener('click', () => {
+        const name = presetNameInput.value.trim();
+        if (!name) {
+            alert('Enter a name for the preset.');
+            return;
+        }
+        const preset = captureCurrentPreset(name);
+        presetStore.save(preset);
+        refreshPresetList(name);
+    });
+
+    presetClearBtn.addEventListener('click', () => {
+        presetNameInput.value = '';
+    });
+
+    presetLoadBtn.addEventListener('click', async () => {
+        const preset = getSelectedPreset();
+        if (!preset) {
+            alert('Select a preset to load.');
+            return;
+        }
+        await applyPreset(preset);
+    });
+
+    presetDeleteBtn.addEventListener('click', () => {
+        const preset = getSelectedPreset();
+        if (!preset) {
+            alert('Select a preset to delete.');
+            return;
+        }
+        if (confirm(`Delete preset "${preset.name}"?`)) {
+            presetStore.remove(preset.id);
+            refreshPresetList();
+        }
+    });
+
     function updateTempoDisplay() {
         seqTempoValue.textContent = `${seqTempoSlider.value} BPM`;
     }
@@ -218,6 +272,189 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateModDepthDisplay() {
         modDepthValue.textContent = `${modDepthSlider.value}%`;
+    }
+
+    function createPresetStore() {
+        const STORAGE_KEY = 'logue_presets_v1';
+
+        function loadAll() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    return parsed;
+                }
+            } catch (err) {
+                console.warn('Failed to parse preset store:', err);
+            }
+            return [];
+        }
+
+        function saveAll(presets) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+        }
+
+        return {
+            list() {
+                return loadAll();
+            },
+            save(preset) {
+                const presets = loadAll();
+                const existingIndex = presets.findIndex((p) => p.id === preset.id);
+                if (existingIndex >= 0) {
+                    presets[existingIndex] = preset;
+                } else {
+                    presets.push(preset);
+                }
+                saveAll(presets);
+            },
+            remove(id) {
+                saveAll(loadAll().filter((preset) => preset.id !== id));
+            }
+        };
+    }
+
+    function refreshPresetList(selectId) {
+        const presets = presetStore.list();
+        presetListSelect.innerHTML = '';
+        if (!presets.length) {
+            const option = document.createElement('option');
+            option.textContent = 'No presets saved';
+            option.disabled = true;
+            presetListSelect.appendChild(option);
+            presetListSelect.disabled = true;
+            presetLoadBtn.disabled = true;
+            presetDeleteBtn.disabled = true;
+            return;
+        }
+
+        presetListSelect.disabled = false;
+        presetLoadBtn.disabled = false;
+        presetDeleteBtn.disabled = false;
+
+        presets.forEach((preset) => {
+            const option = document.createElement('option');
+            option.value = preset.id;
+            option.textContent = preset.name;
+            presetListSelect.appendChild(option);
+        });
+
+        if (selectId && presets.some((preset) => preset.id === selectId)) {
+            presetListSelect.value = selectId;
+        } else {
+            presetListSelect.selectedIndex = 0;
+        }
+    }
+
+    function captureCurrentPreset(name) {
+        const userVoice = audioEngine.getVoice('osc3');
+        const preset = {
+            id: generatePresetId(name),
+            name,
+            createdAt: Date.now(),
+            manifestId: (currentManifest && currentManifest.id) || null,
+            voices: {
+                osc1: captureBuiltinVoice('osc1'),
+                osc2: captureBuiltinVoice('osc2'),
+                osc3: {
+                    level: Math.round(userVoice.level * 100),
+                    params: Array.from(userVoice.params.entries())
+                }
+            },
+            sequencer: {
+                pattern: seqPatternSelect.value,
+                tempo: parseInt(seqTempoSlider.value, 10),
+                octaveSpan: parseInt(seqOctaveSelect.value, 10)
+            },
+            modulation: {
+                target: modTargetSelect.value,
+                rate: parseInt(modRateSlider.value, 10),
+                depth: parseInt(modDepthSlider.value, 10)
+            }
+        };
+        return preset;
+    }
+
+    function captureBuiltinVoice(id) {
+        const voice = audioEngine.getVoice(id);
+        return {
+            waveform: voice.waveform,
+            level: Math.round(voice.level * 100),
+            shape: voice.shape
+        };
+    }
+
+    function generatePresetId(name) {
+        return `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}`;
+    }
+
+    function getSelectedPreset() {
+        const id = presetListSelect.value;
+        if (!id) {
+            return null;
+        }
+        return presetStore.list().find((preset) => preset.id === id) || null;
+    }
+
+    async function applyPreset(preset) {
+        if (!preset) {
+            return;
+        }
+
+        const osc1 = preset.voices.osc1;
+        const osc2 = preset.voices.osc2;
+        const osc3 = preset.voices.osc3;
+
+        audioEngine.setBuiltinWaveform('osc1', osc1.waveform);
+        audioEngine.setVoiceLevel('osc1', osc1.level);
+        audioEngine.setBuiltinShape('osc1', osc1.shape);
+        osc1Controls.setShapeValue(osc1.shape);
+
+        audioEngine.setBuiltinWaveform('osc2', osc2.waveform);
+        audioEngine.setVoiceLevel('osc2', osc2.level);
+        audioEngine.setBuiltinShape('osc2', osc2.shape);
+        osc2Controls.setShapeValue(osc2.shape);
+
+        audioEngine.setVoiceLevel('osc3', osc3.level);
+        userLevelSlider.value = String(osc3.level);
+        userLevelValue.textContent = `${osc3.level}%`;
+
+        if (preset.manifestId && (!currentManifest || currentManifest.id !== preset.manifestId)) {
+            const manifestEntry = manifestIndex.find((entry) => entry.id === preset.manifestId);
+            if (manifestEntry) {
+                const loaded = await loadManifestAndApply(manifestEntry);
+                if (!loaded) {
+                    alert('Preset loaded, but user oscillator failed to load.');
+                }
+            }
+        }
+
+        const osc3Voice = audioEngine.getVoice('osc3');
+        osc3Voice.params = new Map(osc3.params);
+        osc3Voice.params.forEach((value, index) => {
+            audioEngine.setUserParam(index, value);
+        });
+
+        updateUserParamControls(osc3.params);
+
+        seqPatternSelect.value = preset.sequencer.pattern || 'arp-up';
+        seqTempoSlider.value = String(preset.sequencer.tempo || 110);
+        seqOctaveSelect.value = String(preset.sequencer.octaveSpan || 0);
+        updateTempoDisplay();
+
+        modTargetSelect.value = preset.modulation.target || '';
+        modRateSlider.value = String(preset.modulation.rate || 120);
+        modDepthSlider.value = String(preset.modulation.depth || 60);
+        updateModRateDisplay();
+        updateModDepthDisplay();
+        modStatus.textContent = modTargetSelect.value ? 'Ready' : 'Idle';
+    }
+
+    function updateUserParamControls(paramEntries) {
+        paramEntries.forEach((value, index) => {
+            updateUserParamSlider(index, value);
+        });
     }
 
     function renderUserParameters(manifest) {
