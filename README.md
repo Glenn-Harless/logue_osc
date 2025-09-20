@@ -103,6 +103,7 @@ The web-based preview tool (`web-osc-preview/`) allows you to:
 
 - `scripts/dev_preview.py` – optional helper that rebuilds the active logue SDK oscillator to WASM (using Emscripten) and launches the preview server.
 - `scripts/validate_manifests.py` – sanity-check manifest files against the expected schema.
+- `scripts/add_oscillator.py` – scaffold a new oscillator (manifest, wasm build script, index entry) from a generated C source file.
 
 ### In-Browser Test Tools
 

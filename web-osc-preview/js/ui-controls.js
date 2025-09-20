@@ -161,37 +161,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-
-        const loadManifestAndApply = async (manifestEntry) => {
-            userLoadBtn.disabled = true;
-            userLoadBtn.textContent = 'Loading...';
-            userStatus.textContent = 'Loading manifest...';
-
-            try {
-                const manifest = await loadManifest(manifestEntry.manifest, manifestCache);
-                const result = await audioEngine.loadUserOscillator(manifest);
-                currentManifest = manifest;
-                currentManifestParams = Array.isArray(manifest.parameters) ? manifest.parameters : [];
-                renderUserParameters(manifest);
-                applyManifestDefaults(manifest);
-                const voice = audioEngine.getVoice('osc3');
-                const usingFallback = result.status === 'fallback' || voice.isFallback;
-                userStatus.textContent = usingFallback ? 'Loaded (JS fallback)' : 'Loaded (WASM)';
-                userLoadBtn.textContent = 'Reload';
-                userLoadBtn.disabled = false;
-                return true;
-            } catch (err) {
-                console.error('Failed to load user oscillator:', err);
-                currentManifest = null;
-                currentManifestParams = [];
-                updateModTargets(null);
-                userStatus.textContent = 'Load failed';
-                userLoadBtn.textContent = 'Retry';
-                userLoadBtn.disabled = false;
-                return false;
-            }
-        };
-
         await loadManifestAndApply(selectedMeta);
     });
 
@@ -423,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (preset.manifestId && (!currentManifest || currentManifest.id !== preset.manifestId)) {
             const manifestEntry = manifestIndex.find((entry) => entry.id === preset.manifestId);
             if (manifestEntry) {
-                const loaded = await loadManifestAndApply(manifestEntry);
+                const loaded = await loadManifestAndApply(manifestEntry, { quiet: true });
                 if (!loaded) {
                     alert('Preset loaded, but user oscillator failed to load.');
                 }
@@ -431,12 +400,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         const osc3Voice = audioEngine.getVoice('osc3');
-        osc3Voice.params = new Map(osc3.params);
-        osc3Voice.params.forEach((value, index) => {
+        const userParamMap = new Map(osc3.params);
+        osc3Voice.params = userParamMap;
+        userParamMap.forEach((value, index) => {
             audioEngine.setUserParam(index, value);
         });
 
-        updateUserParamControls(osc3.params);
+        updateUserParamControls(userParamMap);
 
         seqPatternSelect.value = preset.sequencer.pattern || 'arp-up';
         seqTempoSlider.value = String(preset.sequencer.tempo || 110);
@@ -810,6 +780,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         const manifest = await response.json();
         cache.set(path, manifest);
         return manifest;
+    }
+
+    async function loadManifestAndApply(manifestEntry, options = {}) {
+        if (!manifestEntry) {
+            return false;
+        }
+
+        const quiet = Boolean(options.quiet);
+
+        if (!quiet) {
+            userLoadBtn.textContent = 'Loading...';
+            userStatus.textContent = 'Loading manifest...';
+        }
+        userLoadBtn.disabled = true;
+
+        try {
+            const manifest = await loadManifest(manifestEntry.manifest, manifestCache);
+            const result = await audioEngine.loadUserOscillator(manifest);
+            currentManifest = manifest;
+            currentManifestParams = Array.isArray(manifest.parameters) ? manifest.parameters : [];
+            renderUserParameters(manifest);
+            applyManifestDefaults(manifest);
+            const voice = audioEngine.getVoice('osc3');
+            const usingFallback = result.status === 'fallback' || voice.isFallback;
+            userStatus.textContent = usingFallback ? 'Loaded (JS fallback)' : 'Loaded (WASM)';
+            userLoadBtn.textContent = 'Reload';
+            return true;
+        } catch (err) {
+            console.error('Failed to load user oscillator:', err);
+            currentManifest = null;
+            currentManifestParams = [];
+            updateModTargets(null);
+            if (!quiet) {
+                userStatus.textContent = 'Load failed';
+                userLoadBtn.textContent = 'Retry';
+            }
+            return false;
+        } finally {
+            userLoadBtn.disabled = false;
+        }
     }
 
     function updateModTargets(manifest) {
