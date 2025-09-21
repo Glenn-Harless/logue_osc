@@ -1,0 +1,71 @@
+{
+  "id": "hybrid-morph",
+  "name": "Hybrid Morph",
+  "description": "Dual wavetable morph oscillator inspired by Moderat/Apparat textures",
+  "source": "oscillators/hybrid-morph/hybrid_morph.c",
+  "parameters": [
+    {
+      "index": 0,
+      "name": "Morph",
+      "description": "Blend between wavetable A/B",
+      "min": 0,
+      "max": 1023,
+      "default": 512,
+      "group": "Waves"
+    },
+    {
+      "index": 1,
+      "name": "Detune",
+      "description": "Detune amount around center",
+      "min": 0,
+      "max": 1023,
+      "default": 512,
+      "group": "Waves"
+    },
+    {
+      "index": 2,
+      "name": "Texture",
+      "description": "Noise texture mix",
+      "min": 0,
+      "max": 1023,
+      "default": 128,
+      "group": "Texture"
+    },
+    {
+      "index": 3,
+      "name": "Motion",
+      "description": "LFO depth + rate",
+      "min": 0,
+      "max": 1023,
+      "default": 256,
+      "group": "Motion"
+    },
+    {
+      "index": 4,
+      "name": "Attack",
+      "description": "Envelope attack time",
+      "min": 0,
+      "max": 1023,
+      "default": 80,
+      "group": "Envelope"
+    },
+    {
+      "index": 5,
+      "name": "Release",
+      "description": "Envelope release time",
+      "min": 0,
+      "max": 1023,
+      "default": 640,
+      "group": "Envelope"
+    }
+  ],
+  "tags": [
+    "hybrid",
+    "atmospheric",
+    "morph"
+  ],
+  "defaultLevel": 45.0,
+  "wasm": {
+    "module": "../wasm/hybrid-morph.js"
+  }
+}

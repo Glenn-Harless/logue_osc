@@ -5,6 +5,12 @@
       "name": "FM Bell",
       "description": "FM percussion voice designed via logue SDK.",
       "manifest": "manifests/fm-bell.json"
+    },
+    {
+      "id": "hybrid-morph",
+      "name": "Hybrid Morph",
+      "description": "Dual wavetable morph oscillator inspired by Moderat/Apparat textures",
+      "manifest": "manifests/hybrid-morph.json"
     }
   ]
 }

@@ -53,6 +53,12 @@ make
 - Parameter map follows `OSC_PARAM` slots (ratio, FM depth, decay, fine, vibrato)
 - Latest build: `builds/fm_bell_v5.mnlgxdunit`
 
+### Hybrid Morph
+- Dual wavetable morph oscillator with internal morph LFO
+- Designed for atmospheric pads and evolving textures (Moderat/Apparat inspired)
+- Parameters cover morph blend, detune, texture, motion, and envelope times
+- Latest build: `builds/hybrid_morph.mnlgxdunit` (run `make` inside `oscillators/hybrid-morph`)
+
 ## Web Preview Tool
 
 The web-based preview tool (`web-osc-preview/`) allows you to:

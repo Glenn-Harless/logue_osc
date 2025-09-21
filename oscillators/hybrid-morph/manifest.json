@@ -1,0 +1,20 @@
+{
+    "header": {
+        "platform": "minilogue-xd",
+        "module": "osc",
+        "api": "1.1-0",
+        "dev_id": 0,
+        "prg_id": 0,
+        "version": "1.0-0",
+        "name": "Hybrid Morph",
+        "num_param": 6,
+        "params": [
+            ["Morph",    0, 100, "%"],
+            ["Detune",   -30, 30, "cent"],
+            ["Texture",  0, 100, "%"],
+            ["Motion",   0, 100, "%"],
+            ["Attack",   0, 100, "%"],
+            ["Release",  0, 100, "%"]
+        ]
+    }
+}
