@@ -58,7 +58,8 @@ class OscillatorEngine {
             sampleRate: this.sampleRate
         });
 
-        await this.audioContext.audioWorklet.addModule('js/worklets/osc-mixer.js');
+        const workletUrl = `js/worklets/osc-mixer.js?v=${Date.now()}`;
+        await this.audioContext.audioWorklet.addModule(workletUrl);
 
         this.workletNode = new AudioWorkletNode(this.audioContext, 'osc-mixer-processor');
         this.workletNode.port.onmessage = (event) => this.handleWorkletMessage(event.data);

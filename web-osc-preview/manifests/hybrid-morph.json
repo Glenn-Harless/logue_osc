@@ -66,6 +66,11 @@
   ],
   "defaultLevel": 45.0,
   "wasm": {
-    "module": "../wasm/hybrid-morph.js"
+    "module": "../wasm/hybrid-morph.js",
+    "factory": "HybridMorphModule"
+  },
+  "fallback": {
+    "module": "js/fm-bell-js.js",
+    "export": "FMBellOscillator"
   }
 }

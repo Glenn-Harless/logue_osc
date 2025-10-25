@@ -7,6 +7,12 @@
       "manifest": "manifests/fm-bell.json"
     },
     {
+      "id": "fm-kalimba",
+      "name": "FM Kalimba",
+      "description": "Metallic tine pluck with body resonance and attack noise.",
+      "manifest": "manifests/fm-kalimba.json"
+    },
+    {
       "id": "hybrid-morph",
       "name": "Hybrid Morph",
       "description": "Dual wavetable morph oscillator inspired by Moderat/Apparat textures",

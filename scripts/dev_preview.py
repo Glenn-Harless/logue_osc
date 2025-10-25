@@ -35,11 +35,16 @@ def main() -> int:
     preview_dir = repo_root / "web-osc-preview"
 
     if not args.skip_build:
-        build_script = wasm_dir / "build-fm-bell.sh"
-        if not build_script.exists():
-            print("Build script not found at", build_script, file=sys.stderr)
+        build_scripts = sorted(wasm_dir.glob("build-*.sh"))
+        if not build_scripts:
+            print("No build scripts found in", wasm_dir, file=sys.stderr)
             return 1
-        run(["bash", str(build_script)], cwd=wasm_dir)
+        for script in build_scripts:
+            try:
+                run(["bash", str(script)], cwd=wasm_dir)
+            except subprocess.CalledProcessError as err:
+                print(f"Warning: build script {script.name} failed (exit {err.returncode}).")
+                print("         Install Emscripten or rerun with --skip-build to rely on JS fallbacks.")
     else:
         print("Skipping WASM build as requested")
 

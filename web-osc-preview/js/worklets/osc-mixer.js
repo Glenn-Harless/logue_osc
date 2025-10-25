@@ -1,5 +1,6 @@
 import { WasmOscillator } from '../wasm-loader.js';
 import { FMBellOscillator } from '../fm-bell-js.js';
+import { FMKalimbaOscillator } from '../fm-kalimba-js.js';
 
 const VOICE_IDS = ['osc1', 'osc2'];
 
@@ -157,7 +158,7 @@ class OscMixerProcessor extends AudioWorkletProcessor {
 
         try {
             if (manifest?.wasm?.module) {
-                const osc = new WasmOscillator(manifest.wasm.module);
+                const osc = new WasmOscillator(manifest.wasm.module, manifest.wasm.factory);
                 const loaded = await osc.load();
                 if (loaded) {
                     this.userOscillator = osc;
@@ -196,6 +197,10 @@ class OscMixerProcessor extends AudioWorkletProcessor {
     getFallbackClass(manifestId) {
         switch (manifestId) {
             case 'fm-bell':
+                return FMBellOscillator;
+            case 'fm-kalimba':
+                return FMKalimbaOscillator;
+            case 'hybrid-morph':
                 return FMBellOscillator;
             default:
                 return null;

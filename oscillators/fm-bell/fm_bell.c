@@ -6,6 +6,7 @@
  */
 
 #include "userosc.h"
+#include <math.h>
 
 // Parameter indices
 #define PARAM_RATIO      0  // Modulator:Carrier ratio
@@ -64,11 +65,44 @@ void OSC_INIT(uint32_t platform, uint32_t api)
 }
 
 // Main synthesis function
+static inline float fast_log2f(float x) {
+    return logf(x) * 1.44269504089f;
+}
+
+static inline float calc_w0(const user_osc_param_t * const params) {
+#ifdef __EMSCRIPTEN__
+    return params->pitch;
+#else
+    const uint16_t pitch_word = params->pitch;
+    const uint8_t note = (pitch_word >> 8) & 0xFF;
+    const uint8_t fine = pitch_word & 0xFF;
+    return osc_w0f_for_note(note, fine);
+#endif
+}
+
+static inline float calc_velocity(const user_osc_param_t * const params) {
+#ifdef __EMSCRIPTEN__
+    const float freq = fmaxf(params->pitch * k_samplerate, 1e-3f);
+    const float note = 69.0f + 12.0f * fast_log2f(freq / 440.0f);
+    const float scaled = (note + 64.0f) / 127.0f;
+    if (scaled < 0.0f) {
+        return 0.5f;
+    }
+    if (scaled > 1.0f) {
+        return 1.0f;
+    }
+    return scaled;
+#else
+    const uint8_t note = (params->pitch >> 8) & 0xFF;
+    return (note + 64.0f) / 127.0f;
+#endif
+}
+
 void OSC_CYCLE(const user_osc_param_t * const params,
                int32_t *yn,
                const uint32_t frames)
 {
-    const float w0 = params->pitch;
+    const float w0 = calc_w0(params);
     const float mod_w0 = w0 * (state.ratio + state.fine_ratio);
     
     // Vibrato LFO increment
@@ -118,8 +152,7 @@ void OSC_NOTEON(const user_osc_param_t * const params)
     state.note_on = 1;
     
     // Reset envelopes with velocity sensitivity
-    float velocity = params->pitch >> 8; // Extract velocity
-    velocity = (velocity + 64.0f) / 127.0f; // Scale 0-127 to 0.5-1.0
+    float velocity = calc_velocity(params);
     
     state.amp_env = velocity;
     state.mod_env = 1.0f;

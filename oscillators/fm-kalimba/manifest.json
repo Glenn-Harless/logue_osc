@@ -1,0 +1,21 @@
+{
+    "header" : 
+    {
+        "platform" : "minilogue-xd",
+        "module" : "osc",
+        "api" : "1.1-0",
+        "dev_id" : 0,
+        "prg_id" : 0,
+        "version" : "1.0-0",
+        "name" : "Kalimba",
+        "num_param" : 6,
+        "params" : [
+            ["Tine",        0, 100, "%"],
+            ["Brightness",  0, 100, "%"],
+            ["Decay",       0, 100, "%"],
+            ["Tone Decay",  0, 100, "%"],
+            ["Body",        0, 100, "%"],
+            ["Noise",       0, 100, "%"]
+          ]
+    }
+}

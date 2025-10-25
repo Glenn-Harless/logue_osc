@@ -1,0 +1,72 @@
+{
+  "id": "fm-kalimba",
+  "name": "FM Kalimba",
+  "description": "Plucked tine FM voice with body resonance and attack noise.",
+  "source": "oscillators/fm-kalimba/fm_kalimba.c",
+  "tags": ["fm", "percussion", "kalimba"],
+  "defaultLevel": 42,
+  "wasm": {
+    "module": "../wasm/fm-kalimba.js",
+    "factory": "FMKalimbaModule"
+  },
+  "fallback": {
+    "module": "js/fm-kalimba-js.js",
+    "export": "FMKalimbaOscillator"
+  },
+  "parameters": [
+    {
+      "index": 0,
+      "name": "Tine",
+      "description": "Selects calibrated tine ratios from mellow to bright.",
+      "group": "Tine",
+      "min": 0,
+      "max": 1023,
+      "default": 384
+    },
+    {
+      "index": 1,
+      "name": "Brightness",
+      "description": "FM depth controlling metallic shimmer.",
+      "group": "Tine",
+      "min": 0,
+      "max": 1023,
+      "default": 448
+    },
+    {
+      "index": 2,
+      "name": "Decay",
+      "description": "Amplitude decay time from muted pluck to long sustain.",
+      "group": "Envelopes",
+      "min": 0,
+      "max": 1023,
+      "default": 512
+    },
+    {
+      "index": 3,
+      "name": "Tone Decay",
+      "description": "Brightness decay time; higher keeps metallic tail alive.",
+      "group": "Envelopes",
+      "min": 0,
+      "max": 1023,
+      "default": 384
+    },
+    {
+      "index": 4,
+      "name": "Body",
+      "description": "Blend between direct tine and resonant body follower.",
+      "group": "Resonance",
+      "min": 0,
+      "max": 1023,
+      "default": 640
+    },
+    {
+      "index": 5,
+      "name": "Noise",
+      "description": "Attack noise level and decay for finger/pick articulation.",
+      "group": "Resonance",
+      "min": 0,
+      "max": 1023,
+      "default": 256
+    }
+  ]
+}

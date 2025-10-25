@@ -1,5 +1,5 @@
 export class WasmOscillator {
-    constructor(modulePath) {
+    constructor(modulePath, factoryName) {
         this.module = null;
         this.initialized = false;
         
@@ -20,6 +20,7 @@ export class WasmOscillator {
         this.paramValues = new Map();
 
         this.modulePath = modulePath;
+        this.factoryName = factoryName;
     }
     
     async load() {
@@ -28,8 +29,18 @@ export class WasmOscillator {
             if (!this.modulePath) {
                 throw new Error('No WASM module path provided');
             }
-            const moduleFactory = await import(this.modulePath);
-            this.module = await moduleFactory.default();
+            if (typeof importScripts === 'function') {
+                importScripts(this.modulePath);
+            } else {
+                throw new Error('importScripts unavailable in this context');
+            }
+
+            const factory = (self && this.factoryName) ? self[this.factoryName] : null;
+            if (!factory) {
+                throw new Error(`Factory ${this.factoryName || '(unknown)'} not found after loading ${this.modulePath}`);
+            }
+
+            this.module = await factory();
             
             // Get function pointers
             this.oscInit = this.module.cwrap('OSC_INIT', null, ['number', 'number']);

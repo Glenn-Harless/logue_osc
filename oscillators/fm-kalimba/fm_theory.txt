@@ -1,0 +1,40 @@
+# FM Synthesis Notes for Kalimba Timbres
+
+## Why FM Works for Tine Instruments
+
+Kalimba tines produce a strong fundamental plus clusters of inharmonic partials. Two-operator FM emulates this efficiently:
+1. The carrier supplies the fundamental while the modulator creates the higher, slightly detuned overtones.
+2. Small ratio adjustments move sidebands in and out of alignment, mimicking how tine length and pickup placement change tone.
+3. Independent amp and modulation decays model how real tines brighten on impact and quickly mellow as energy transfers to the resonator box.
+
+## Curated Tine Ratios
+
+The oscillator sweeps through a table of ratios chosen from spectral analyses of acoustic kalimbas:
+
+- 1.50 – Perfect fifth tint; round and mellow
+- 1.70 – Slightly stretched, adds gentle shimmer
+- 1.90 – Strong tine bite without harshness
+- 2.15 – Upper third cluster common in large kalimbas
+- 2.40 – Balanced brightness for ensemble patches
+- 2.70 – Airy, modern pluck
+- 3.10 – Focused, mid-forward tone
+- 3.50 – Bright stage kalimba character
+- 4.00 – Glassy upper partials
+- 4.60 – Cutting sparkle, good for leads
+- 5.20 – Metallic chime territory
+
+Interpolating across these anchors keeps sweeps musical while still covering the inharmonic territory that gives thumb pianos their charm.
+
+## Modulation Depth & Tone Evolution
+
+Modulation index (`I`) tracks perceived brightness. Values around 0.5–2 generate ample tine harmonics without overwhelming the fundamental. Higher settings (>6) move toward synthetic chimes and should be paired with short Tone Decay to avoid aliasing.
+
+The Tone Decay parameter alters the mod envelope constant so brightness falls off sooner than loudness—mirroring how a real tine hands energy to the resonator box. Equal amp and tone decay keeps the metallic component persistent for more modern, sustained plucks.
+
+## Body Resonance Approximation
+
+Instead of another oscillator, a one-pole follower captures the average motion of the excitation. Mixing this back in simulates the soft, hollow body resonance. Lower damping (Body ≥ 60) gives the warm, boxy character heard in mic’d acoustic kalimbas.
+
+## Attack Noise Considerations
+
+Plucked thumb pianos exhibit finger noise and tine scrape. A short noise burst (3–45 ms) layered on the front recreates this feel. Keep Noise under 30 for natural articulation; higher values work for sampled/lo-fi aesthetics.

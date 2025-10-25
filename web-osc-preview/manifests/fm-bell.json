@@ -6,7 +6,8 @@
   "tags": ["fm", "percussion"],
   "defaultLevel": 45,
   "wasm": {
-    "module": "../wasm/fm-bell.js"
+    "module": "../wasm/fm-bell.js",
+    "factory": "FMBellModule"
   },
   "fallback": {
     "module": "js/fm-bell-js.js",
