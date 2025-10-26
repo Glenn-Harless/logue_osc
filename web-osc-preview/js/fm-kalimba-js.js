@@ -2,10 +2,15 @@ const SAMPLE_RATE = 48000;
 
 const MIN_DECAY_TIME = 0.05;
 const MAX_DECAY_TIME = 5.0;
-const MIN_TONE_DECAY = 0.01;
-const MAX_TONE_DECAY = 1.5;
-const MIN_NOISE_TIME = 0.003;
-const MAX_NOISE_TIME = 0.045;
+const MIN_TONE_DECAY = 0.02;
+const MAX_TONE_DECAY = 2.5;
+const MIN_NOISE_TIME = 0.008;
+const MAX_NOISE_TIME = 0.18;
+
+const DEFAULT_DECAY_NORM = 0.13;
+const DEFAULT_TONE_DECAY_NORM = 0.13;
+const DEFAULT_NOISE_NORM = 0.4;
+const BASE_PITCH_SHIFT = 2.0;
 
 const TINE_RATIOS = [
   1.5, 1.7, 1.9, 2.15, 2.4,
@@ -31,20 +36,24 @@ export class FMKalimbaOscillator {
     this.carrierPhase = 0;
     this.modPhase = 0;
     this.ratio = TINE_RATIOS[0];
-    this.fmDepth = 0.8;
+    this.fmDepth = 2.4;
 
     this.ampEnv = 0;
     this.modEnv = 0;
     this.noiseEnv = 0;
 
-    this.ampDecay = Math.exp(-1 / (MIN_DECAY_TIME * SAMPLE_RATE));
-    this.modDecay = Math.exp(-1 / (MIN_TONE_DECAY * SAMPLE_RATE));
-    this.noiseDecay = Math.exp(-1 / (MIN_NOISE_TIME * SAMPLE_RATE));
+    this.ampDecayNorm = DEFAULT_DECAY_NORM;
+    this.modDecayNorm = DEFAULT_TONE_DECAY_NORM;
+    this.noiseDecayNorm = DEFAULT_NOISE_NORM;
+    this.ampDecay = Math.exp(-1 / ((MIN_DECAY_TIME + this.ampDecayNorm * (MAX_DECAY_TIME - MIN_DECAY_TIME)) * SAMPLE_RATE));
+    this.modDecay = Math.exp(-1 / ((MIN_TONE_DECAY + this.modDecayNorm * (MAX_TONE_DECAY - MIN_TONE_DECAY)) * SAMPLE_RATE));
+    this.noiseDecay = Math.exp(-1 / ((MIN_NOISE_TIME + this.noiseDecayNorm * (MAX_NOISE_TIME - MIN_NOISE_TIME)) * SAMPLE_RATE));
 
     this.bodyState = 0;
-    this.bodyMix = 0;
-    this.bodyCoeff = 0.1;
-    this.noiseAmount = 0;
+    this.bodyMix = 0.35;
+    this.bodyCoeff = 0.08;
+    this.noiseAmount = 0.25;
+    this.pitchShift = BASE_PITCH_SHIFT;
 
     this.currentNote = 60;
     this.paramValues = new Map();
@@ -56,29 +65,32 @@ export class FMKalimbaOscillator {
     const norm = value / 1023;
 
     switch (index) {
-      case 0: // Tine
+      case 0: // Harmonics
         this.ratio = interpolateTineRatio(norm);
         break;
       case 1: // Brightness
-        this.fmDepth = 0.8 + norm * 10.8;
+        this.fmDepth = 0.6 + (norm * norm) * 12.4;
         break;
       case 2: { // Decay
-        const decayTime = MIN_DECAY_TIME + norm * (MAX_DECAY_TIME - MIN_DECAY_TIME);
+        this.ampDecayNorm = norm;
+        const decayTime = MIN_DECAY_TIME + this.ampDecayNorm * (MAX_DECAY_TIME - MIN_DECAY_TIME);
         this.ampDecay = Math.exp(-1 / (decayTime * SAMPLE_RATE));
         break;
       }
       case 3: { // Tone decay
-        const decayTime = MIN_TONE_DECAY + norm * (MAX_TONE_DECAY - MIN_TONE_DECAY);
+        this.modDecayNorm = norm;
+        const decayTime = MIN_TONE_DECAY + this.modDecayNorm * (MAX_TONE_DECAY - MIN_TONE_DECAY);
         this.modDecay = Math.exp(-1 / (decayTime * SAMPLE_RATE));
         break;
       }
       case 4: // Body mix / damping
         this.bodyMix = norm;
-        this.bodyCoeff = 0.02 + (1 - norm) * 0.08;
+        this.bodyCoeff = 0.02 + norm * 0.18;
         break;
       case 5: { // Noise
         this.noiseAmount = norm;
-        const noiseTime = MIN_NOISE_TIME + norm * (MAX_NOISE_TIME - MIN_NOISE_TIME);
+        this.noiseDecayNorm = 0.1 + 0.9 * norm;
+        const noiseTime = MIN_NOISE_TIME + this.noiseDecayNorm * (MAX_NOISE_TIME - MIN_NOISE_TIME);
         this.noiseDecay = Math.exp(-1 / (noiseTime * SAMPLE_RATE));
         break;
       }
@@ -91,6 +103,10 @@ export class FMKalimbaOscillator {
     this.setParam(0, value);
   }
 
+  setShiftShape(value) {
+    this.setParam(3, value);
+  }
+
   applyStoredParams() {
     for (const [index, value] of this.paramValues.entries()) {
       this.setParam(index, value);
@@ -100,7 +116,7 @@ export class FMKalimbaOscillator {
   noteOn(note, velocity = 100) {
     const velNorm = Math.max(0, Math.min(velocity / 127, 1));
     const ampScale = 0.55 + 0.45 * velNorm;
-    const brightScale = 1.0 + 0.4 * velNorm;
+    const brightScale = 1.0 + 0.35 * velNorm;
 
     this.currentNote = note;
     this.ampEnv = ampScale;
@@ -119,7 +135,7 @@ export class FMKalimbaOscillator {
   }
 
   process(outputArray, frames) {
-    const frequency = 440 * Math.pow(2, (this.currentNote - 69) / 12);
+    const frequency = 440 * Math.pow(2, (this.currentNote - 69) / 12) * this.pitchShift;
     const carrierInc = (2 * Math.PI * frequency) / this.sampleRate;
     const modInc = carrierInc * this.ratio;
 

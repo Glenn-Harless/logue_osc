@@ -50,14 +50,14 @@ Modulation intensity (brightness control)
 - **80-100%**: Harsh, clangy tones
 
 ### 3. Decay Time (0-100%)
-Controls how quickly the sound fades
+Controls how quickly the sound fades (defaults to roughly 8% for a subtle ring)
 - **0-10%**: Very short, percussive hits
 - **10-30%**: Kalimba-like plucks
 - **30-60%**: Bell-like sustain
 - **60-100%**: Long, singing tones
 
 ### 4. Mod Decay (0-100%)
-Modulator envelope decay (timbral evolution)
+Modulator envelope decay (timbral evolution). The hardware **Shape** knob mirrors this parameter for quick adjustments.
 - **< Carrier**: Sound gets duller over time
 - **= Carrier**: Consistent timbre
 - **> Carrier**: Sound gets brighter before fading

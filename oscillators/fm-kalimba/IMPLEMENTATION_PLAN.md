@@ -18,7 +18,7 @@ This plan captures the design decisions for the kalimba-focused FM oscillator. T
 
 | Parameter | Mapping Strategy |
 |-----------|------------------|
-| Tine | Lookup interpolation across the curated ratio table. |
+| Harmonics | Lookup interpolation across the curated ratio table. |
 | Brightness | FM depth range tailored for metallic sparkle with a non-zero floor. |
 | Decay | Converts 0–100% into 50 ms – 5 s amplitude decay. |
 | Tone Decay | Maps to 10 ms – 1.5 s for the modulation envelope so the tine can darken separately from loudness. |

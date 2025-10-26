@@ -17,9 +17,11 @@
 #define PARAM_VIBRATO    5  // Vibrato depth
 
 // Constants
-#define VIBRATO_FREQ    5.0f  // Hz
-#define MIN_DECAY_TIME  0.001f
-#define MAX_DECAY_TIME  10.0f
+#define VIBRATO_FREQ         5.0f  // Hz
+#define MIN_DECAY_TIME       0.001f
+#define MAX_DECAY_TIME       10.0f
+#define DEFAULT_DECAY_NORM    0.08f
+#define DEFAULT_FM_DEPTH_NORM 0.35f
 
 // FM oscillator state
 typedef struct {
@@ -34,6 +36,9 @@ typedef struct {
     float mod_decay;
     float vibrato_phase;
     float vibrato_depth;
+    float amp_decay_norm;
+    float mod_decay_norm;
+    float fm_depth_norm;
     uint8_t note_on;
 } FMBellState;
 
@@ -47,6 +52,16 @@ static inline float fast_expf(float x) {
     return x;
 }
 
+static inline float calc_amp_decay_coeff(float norm) {
+    const float decay_time = MIN_DECAY_TIME + norm * (MAX_DECAY_TIME - MIN_DECAY_TIME);
+    return fast_expf(-1.0f / (decay_time * k_samplerate));
+}
+
+static inline float calc_mod_decay_coeff(float norm) {
+    const float decay_time = MIN_DECAY_TIME + norm * (MAX_DECAY_TIME - MIN_DECAY_TIME) * 0.5f;
+    return fast_expf(-1.0f / (decay_time * k_samplerate));
+}
+
 // Initialize oscillator
 void OSC_INIT(uint32_t platform, uint32_t api)
 {
@@ -54,11 +69,14 @@ void OSC_INIT(uint32_t platform, uint32_t api)
     state.mod_phase = 0.0f;
     state.ratio = 1.0f;
     state.fine_ratio = 0.0f;
-    state.fm_depth = 0.0f;
+    state.fm_depth_norm = DEFAULT_FM_DEPTH_NORM;
+    state.fm_depth = state.fm_depth_norm * 10.0f;
     state.amp_env = 0.0f;
     state.mod_env = 0.0f;
-    state.amp_decay = 0.99f;
-    state.mod_decay = 0.99f;
+    state.amp_decay_norm = DEFAULT_DECAY_NORM;
+    state.mod_decay_norm = DEFAULT_DECAY_NORM;
+    state.amp_decay = calc_amp_decay_coeff(state.amp_decay_norm);
+    state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
     state.vibrato_phase = 0.0f;
     state.vibrato_depth = 0.0f;
     state.note_on = 0;
@@ -183,22 +201,23 @@ void OSC_PARAM(uint16_t index, uint16_t value)
             
         case PARAM_FM_DEPTH:
             // Scale 0-1 to 0-10 for modulation index
-            state.fm_depth = valf * 10.0f;
+            state.fm_depth_norm = valf;
+            state.fm_depth = state.fm_depth_norm * 10.0f;
             break;
             
         case PARAM_DECAY:
             // Convert to decay factor (longer = closer to 1.0)
             {
-                float decay_time = MIN_DECAY_TIME + valf * (MAX_DECAY_TIME - MIN_DECAY_TIME);
-                state.amp_decay = fast_expf(-1.0f / (decay_time * k_samplerate));
+                state.amp_decay_norm = valf;
+                state.amp_decay = calc_amp_decay_coeff(state.amp_decay_norm);
             }
             break;
             
         case PARAM_MOD_DECAY:
             // Modulator decay, typically faster than carrier
             {
-                float decay_time = MIN_DECAY_TIME + valf * (MAX_DECAY_TIME - MIN_DECAY_TIME) * 0.5f;
-                state.mod_decay = fast_expf(-1.0f / (decay_time * k_samplerate));
+                state.mod_decay_norm = valf;
+                state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
             }
             break;
             
@@ -211,7 +230,12 @@ void OSC_PARAM(uint16_t index, uint16_t value)
             // Vibrato depth 0-100%
             state.vibrato_depth = valf * 100.0f;
             break;
-            
+
+        case k_user_osc_param_shape:
+            state.mod_decay_norm = valf;
+            state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
+            break;
+
         default:
             break;
     }

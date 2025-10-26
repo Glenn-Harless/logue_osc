@@ -16,9 +16,9 @@
   "parameters": [
     {
       "index": 0,
-      "name": "Tine",
-      "description": "Selects calibrated tine ratios from mellow to bright.",
-      "group": "Tine",
+      "name": "Harmonics",
+      "description": "Blends through curated tine partial ratios from warm to bright.",
+      "group": "Spectrum",
       "min": 0,
       "max": 1023,
       "default": 384
@@ -26,8 +26,8 @@
     {
       "index": 1,
       "name": "Brightness",
-      "description": "FM depth controlling metallic shimmer.",
-      "group": "Tine",
+      "description": "FM depth controlling metallic shimmer and bite.",
+      "group": "Spectrum",
       "min": 0,
       "max": 1023,
       "default": 448

@@ -8,11 +8,14 @@ export class FMBellOscillator {
         this.mod_phase = 0.0;
         this.ratio = 1.0;
         this.fine_ratio = 0.0;
-        this.fm_depth = 0.0;
+        this.fm_depth_norm = 0.35;
+        this.fm_depth = this.fm_depth_norm * 10.0;
         this.amp_env = 0.0;
         this.mod_env = 0.0;
-        this.amp_decay = 0.99;    // Original value
-        this.mod_decay = 0.99;    // Original value
+        this.amp_decay_norm = 0.08;
+        this.mod_decay_norm = 0.08;
+        this.amp_decay = this.computeAmpDecay(this.amp_decay_norm);
+        this.mod_decay = this.computeModDecay(this.mod_decay_norm);
         this.vibrato_phase = 0.0;
         this.vibrato_depth = 0.0;
         this.note_on = false;
@@ -33,6 +36,16 @@ export class FMBellOscillator {
         x *= x; x *= x; x *= x; x *= x;
         x *= x; x *= x; x *= x; x *= x;
         return x;
+    }
+
+    computeAmpDecay(norm) {
+        const decayTime = this.MIN_DECAY_TIME + norm * (this.MAX_DECAY_TIME - this.MIN_DECAY_TIME);
+        return Math.exp(-1.0 / (decayTime * this.sampleRate));
+    }
+
+    computeModDecay(norm) {
+        const decayTime = this.MIN_DECAY_TIME + norm * (this.MAX_DECAY_TIME - this.MIN_DECAY_TIME) * 0.5;
+        return Math.exp(-1.0 / (decayTime * this.sampleRate));
     }
     
     noteOn(note, velocity = 100) {
@@ -66,18 +79,19 @@ export class FMBellOscillator {
                 break;
 
             case 1: // FM Depth
-                this.fm_depth = valNorm * 10.0;
+                this.fm_depth_norm = valNorm;
+                this.fm_depth = this.fm_depth_norm * 10.0;
                 break;
 
             case 2: { // Amp decay
-                const decayTime = this.MIN_DECAY_TIME + valNorm * (this.MAX_DECAY_TIME - this.MIN_DECAY_TIME);
-                this.amp_decay = Math.exp(-1.0 / (decayTime * this.sampleRate));
+                this.amp_decay_norm = valNorm;
+                this.amp_decay = this.computeAmpDecay(this.amp_decay_norm);
                 break;
             }
 
             case 3: { // Mod decay (half max time)
-                const decayTime = this.MIN_DECAY_TIME + valNorm * (this.MAX_DECAY_TIME - this.MIN_DECAY_TIME) * 0.5;
-                this.mod_decay = Math.exp(-1.0 / (decayTime * this.sampleRate));
+                this.mod_decay_norm = valNorm;
+                this.mod_decay = this.computeModDecay(this.mod_decay_norm);
                 break;
             }
 
@@ -95,7 +109,7 @@ export class FMBellOscillator {
     }
 
     setShape(value) {
-        this.setParam(0, value);
+        this.setParam(3, value);
     }
     
     process(outputArray, frames) {
@@ -106,18 +120,6 @@ export class FMBellOscillator {
         
         // Vibrato LFO increment
         const vibrato_inc = this.VIBRATO_FREQ / this.sampleRate;
-        
-        // Debug first frame only
-        if (this._debugCount === undefined) this._debugCount = 0;
-        if (this._debugCount++ < 5) {
-            console.log('FM Bell process:', {
-                frames,
-                amp_env: this.amp_env,
-                frequency,
-                ratio: this.ratio,
-                fm_depth: this.fm_depth
-            });
-        }
         
         for (let i = 0; i < frames; i++) {
             // Update envelopes

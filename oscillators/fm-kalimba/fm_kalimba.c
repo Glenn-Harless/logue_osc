@@ -7,6 +7,7 @@
 
 #include "userosc.h"
 #include <math.h>
+#include <stdbool.h>
 
 // Parameter indices
 #define PARAM_TINE        0
@@ -19,10 +20,15 @@
 // Envelope ranges
 #define MIN_DECAY_TIME    0.05f   // seconds
 #define MAX_DECAY_TIME    5.0f
-#define MIN_TONE_DECAY    0.01f
-#define MAX_TONE_DECAY    1.5f
-#define MIN_NOISE_TIME    0.003f
-#define MAX_NOISE_TIME    0.045f
+#define MIN_TONE_DECAY    0.02f
+#define MAX_TONE_DECAY    2.5f
+#define MIN_NOISE_TIME    0.008f
+#define MAX_NOISE_TIME    0.18f
+
+#define DEFAULT_DECAY_NORM       0.13f
+#define DEFAULT_TONE_DECAY_NORM  0.13f
+#define DEFAULT_NOISE_NORM       0.4f
+#define BASE_PITCH_SHIFT         2.0f
 
 // Pre-selected tine ratios (approximate kalimba partials)
 static const float k_tine_ratios[] = {
@@ -45,6 +51,10 @@ typedef struct {
     float body_mix;
     float body_coeff;
     float noise_amount;
+    float amp_decay_norm;
+    float mod_decay_norm;
+    float noise_decay_norm;
+    float pitch_shift;
 } FMKalimbaState;
 
 static FMKalimbaState state;
@@ -54,6 +64,21 @@ static inline float fast_expf(float x) {
     x *= x; x *= x; x *= x; x *= x;
     x *= x; x *= x; x *= x; x *= x;
     return x;
+}
+
+static inline float calc_amp_decay_coeff(float norm) {
+    const float time = MIN_DECAY_TIME + norm * (MAX_DECAY_TIME - MIN_DECAY_TIME);
+    return fast_expf(-1.0f / (time * k_samplerate));
+}
+
+static inline float calc_mod_decay_coeff(float norm) {
+    const float time = MIN_TONE_DECAY + norm * (MAX_TONE_DECAY - MIN_TONE_DECAY);
+    return fast_expf(-1.0f / (time * k_samplerate));
+}
+
+static inline float calc_noise_decay_coeff(float norm) {
+    const float time = MIN_NOISE_TIME + norm * (MAX_NOISE_TIME - MIN_NOISE_TIME);
+    return fast_expf(-1.0f / (time * k_samplerate));
 }
 
 static inline float interpolate_tine_ratio(float t) {
@@ -75,17 +100,21 @@ void OSC_INIT(uint32_t platform, uint32_t api)
     state.carrier_phase = 0.0f;
     state.mod_phase = 0.0f;
     state.ratio = k_tine_ratios[0];
-    state.fm_depth = 0.8f;
+    state.fm_depth = 2.4f;
     state.amp_env = 0.0f;
     state.mod_env = 0.0f;
     state.noise_env = 0.0f;
-    state.amp_decay = fast_expf(-1.0f / (MIN_DECAY_TIME * k_samplerate));
-    state.mod_decay = fast_expf(-1.0f / (MIN_TONE_DECAY * k_samplerate));
-    state.noise_decay = fast_expf(-1.0f / (MIN_NOISE_TIME * k_samplerate));
+    state.amp_decay_norm = DEFAULT_DECAY_NORM;
+    state.mod_decay_norm = DEFAULT_TONE_DECAY_NORM;
+    state.noise_decay_norm = DEFAULT_NOISE_NORM;
+    state.amp_decay = calc_amp_decay_coeff(state.amp_decay_norm);
+    state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
+    state.noise_decay = calc_noise_decay_coeff(state.noise_decay_norm);
     state.body_state = 0.0f;
-    state.body_mix = 0.0f;
-    state.body_coeff = 0.10f;
-    state.noise_amount = 0.0f;
+    state.body_mix = 0.35f;
+    state.body_coeff = 0.08f;
+    state.noise_amount = 0.25f;
+    state.pitch_shift = BASE_PITCH_SHIFT;
 }
 
 static inline float fast_log2f(float x) {
@@ -125,7 +154,7 @@ void OSC_CYCLE(const user_osc_param_t * const params,
                int32_t *yn,
                const uint32_t frames)
 {
-    const float w0 = calc_w0(params);
+    const float w0 = calc_w0(params) * state.pitch_shift;
     const float mod_w0 = w0 * state.ratio;
 
     for (uint32_t i = 0; i < frames; i++) {
@@ -157,7 +186,7 @@ void OSC_NOTEON(const user_osc_param_t * const params)
 {
     const float velocity = calc_velocity(params);
     const float amp_scale = 0.55f + 0.45f * velocity;
-    const float bright_scale = 1.0f + 0.4f * velocity;
+    const float bright_scale = 1.0f + 0.35f * velocity;
 
     state.amp_env = amp_scale;
     state.mod_env = bright_scale;
@@ -183,34 +212,44 @@ void OSC_PARAM(uint16_t index, uint16_t value)
             break;
 
         case PARAM_BRIGHTNESS:
-            state.fm_depth = 0.8f + valf * 10.8f;
+        {
+            const float shaped = valf * valf;
+            state.fm_depth = 0.6f + shaped * 12.4f;
             break;
+        }
 
         case PARAM_DECAY:
         {
-            const float decay_time = MIN_DECAY_TIME + valf * (MAX_DECAY_TIME - MIN_DECAY_TIME);
-            state.amp_decay = fast_expf(-1.0f / (decay_time * k_samplerate));
+            state.amp_decay_norm = valf;
+            state.amp_decay = calc_amp_decay_coeff(state.amp_decay_norm);
             break;
         }
 
         case PARAM_TONE_DECAY:
         {
-            const float decay_time = MIN_TONE_DECAY + valf * (MAX_TONE_DECAY - MIN_TONE_DECAY);
-            state.mod_decay = fast_expf(-1.0f / (decay_time * k_samplerate));
+            state.mod_decay_norm = valf;
+            state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
             break;
         }
 
         case PARAM_BODY:
             state.body_mix = valf;
-            state.body_coeff = 0.02f + (1.0f - valf) * 0.08f;
+            state.body_coeff = 0.02f + valf * 0.18f;
             break;
 
         case PARAM_NOISE:
             state.noise_amount = valf;
-            {
-                const float noise_time = MIN_NOISE_TIME + valf * (MAX_NOISE_TIME - MIN_NOISE_TIME);
-                state.noise_decay = fast_expf(-1.0f / (noise_time * k_samplerate));
-            }
+            state.noise_decay_norm = 0.1f + 0.9f * valf;
+            state.noise_decay = calc_noise_decay_coeff(state.noise_decay_norm);
+            break;
+
+        case k_user_osc_param_shape:
+            state.ratio = interpolate_tine_ratio(valf);
+            break;
+
+        case k_user_osc_param_shiftshape:
+            state.mod_decay_norm = valf;
+            state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
             break;
 
         default:
