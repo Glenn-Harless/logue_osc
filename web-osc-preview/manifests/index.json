@@ -17,6 +17,12 @@
       "name": "Hybrid Morph",
       "description": "Dual wavetable morph oscillator inspired by Moderat/Apparat textures",
       "manifest": "manifests/hybrid-morph.json"
+    },
+    {
+      "id": "sync-fold-bass",
+      "name": "Sync Fold Bass",
+      "description": "Hard-sync wavefold bass with punchy transient control.",
+      "manifest": "manifests/sync-fold-bass.json"
     }
   ]
 }

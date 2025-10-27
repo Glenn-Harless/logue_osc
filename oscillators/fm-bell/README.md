@@ -35,9 +35,10 @@ This oscillator uses 2-operator FM synthesis with carefully tuned ratios and env
 
 ## Parameters
 
-### 1. Ratio (1-20)
+### 1. Ratio (0-20)
 Controls the frequency ratio between modulator and carrier
-- **1-3**: Harmonic, musical bells
+- **0-2**: Carrier-dominant, rounded tones
+- **2-3**: Harmonic, musical bells
 - **3.5-7**: Steel drum territory
 - **7-15**: Kalimba/metallic plucks
 - **15-20**: Glass/crystal sounds
@@ -98,7 +99,7 @@ Adds periodic pitch modulation
 - Minimal vibrato
 
 ### Tropical Percussion
-- Ratio: 2.1-3.7
+- Ratio: 1.0-3.7
 - FM Depth: 60-80%
 - Decay: 5-15%
 - Mod Decay: 3-10%

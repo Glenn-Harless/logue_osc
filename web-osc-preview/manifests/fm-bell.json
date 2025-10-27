@@ -17,7 +17,7 @@
     {
       "index": 0,
       "name": "Ratio",
-      "description": "Modulator to carrier ratio (1x - 20x).",
+      "description": "Modulator to carrier ratio (0x - 20x).",
       "group": "FM",
       "min": 0,
       "max": 1023,

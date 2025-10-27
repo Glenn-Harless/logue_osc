@@ -36,6 +36,8 @@ typedef struct {
     float mod_decay;
     float vibrato_phase;
     float vibrato_depth;
+    float vibrato_depth_base;
+    float vibrato_depth_macro;
     float amp_decay_norm;
     float mod_decay_norm;
     float fm_depth_norm;
@@ -43,6 +45,11 @@ typedef struct {
 } FMBellState;
 
 static FMBellState state;
+
+static inline void update_vibrato_depth(void) {
+    const float depth = state.vibrato_depth_base + state.vibrato_depth_macro;
+    state.vibrato_depth = fminf(depth, 100.0f);
+}
 
 // Fast exponential approximation for envelopes
 static inline float fast_expf(float x) {
@@ -78,7 +85,9 @@ void OSC_INIT(uint32_t platform, uint32_t api)
     state.amp_decay = calc_amp_decay_coeff(state.amp_decay_norm);
     state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
     state.vibrato_phase = 0.0f;
-    state.vibrato_depth = 0.0f;
+    state.vibrato_depth_base = 0.0f;
+    state.vibrato_depth_macro = 0.0f;
+    update_vibrato_depth();
     state.note_on = 0;
 }
 
@@ -121,7 +130,8 @@ void OSC_CYCLE(const user_osc_param_t * const params,
                const uint32_t frames)
 {
     const float w0 = calc_w0(params);
-    const float mod_w0 = w0 * (state.ratio + state.fine_ratio);
+    const float mod_ratio = fmaxf(state.ratio + state.fine_ratio, 0.0f);
+    const float mod_w0 = w0 * mod_ratio;
     
     // Vibrato LFO increment
     const float vibrato_inc = VIBRATO_FREQ * k_samplerate_recipf;
@@ -214,11 +224,9 @@ void OSC_PARAM(uint16_t index, uint16_t value)
             break;
             
         case PARAM_MOD_DECAY:
-            // Modulator decay, typically faster than carrier
-            {
-                state.mod_decay_norm = valf;
-                state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
-            }
+            // Modulator decay parameter keeps direct response for menu edits
+            state.mod_decay_norm = valf;
+            state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
             break;
             
         case PARAM_FINE_RATIO:
@@ -228,12 +236,21 @@ void OSC_PARAM(uint16_t index, uint16_t value)
             
         case PARAM_VIBRATO:
             // Vibrato depth 0-100%
-            state.vibrato_depth = valf * 100.0f;
+            state.vibrato_depth_base = valf * 100.0f;
+            update_vibrato_depth();
             break;
 
         case k_user_osc_param_shape:
-            state.mod_decay_norm = valf;
-            state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
+            {
+                const float shaped = valf * valf;
+                state.mod_decay_norm = shaped;
+                state.mod_decay = calc_mod_decay_coeff(state.mod_decay_norm);
+            }
+            break;
+
+        case k_user_osc_param_shiftshape:
+            state.vibrato_depth_macro = valf * 30.0f;
+            update_vibrato_depth();
             break;
 
         default:

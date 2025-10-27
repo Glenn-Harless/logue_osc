@@ -1,0 +1,20 @@
+{
+    "header": {
+        "platform": "minilogue-xd",
+        "module": "osc",
+        "api": "1.1-0",
+        "dev_id": 0,
+        "prg_id": 0,
+        "version": "1.0-0",
+        "name": "Sync Fold Bass",
+        "num_param": 6,
+        "params": [
+            ["Sync",      0, 100, "%"],
+            ["Fold",      0, 100, "%"],
+            ["Tilt",    -50, 50, "%"],
+            ["Sub Mix",  0, 100, "%"],
+            ["Drive",     0, 100, "%"],
+            ["Punch",     0, 100, "%"]
+        ]
+    }
+}

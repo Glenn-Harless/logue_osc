@@ -75,7 +75,7 @@ export class FMBellOscillator {
         switch (index) {
             case 0: // Ratio
                 this.currentShape = value;
-                this.ratio = 1.0 + valNorm * 19.0;
+                this.ratio = valNorm * 20.0;
                 break;
 
             case 1: // FM Depth
@@ -116,7 +116,8 @@ export class FMBellOscillator {
         // Calculate frequency from note
         const frequency = 440 * Math.pow(2, (this.currentNote - 69) / 12);
         const w0 = frequency / this.sampleRate; // Phase increment
-        const mod_w0 = w0 * (this.ratio + this.fine_ratio);
+        const modRatio = Math.max(this.ratio + this.fine_ratio, 0);
+        const mod_w0 = w0 * modRatio;
         
         // Vibrato LFO increment
         const vibrato_inc = this.VIBRATO_FREQ / this.sampleRate;

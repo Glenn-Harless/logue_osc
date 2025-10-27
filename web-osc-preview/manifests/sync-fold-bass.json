@@ -1,0 +1,76 @@
+{
+  "id": "sync-fold-bass",
+  "name": "Sync Fold Bass",
+  "description": "Hard-sync wavefold bass with sub mix and punch envelope.",
+  "source": "oscillators/sync-fold-bass/sync_fold_bass.c",
+  "parameters": [
+    {
+      "index": 0,
+      "name": "Sync",
+      "description": "Slave-to-master hard sync ratio.",
+      "group": "Core",
+      "min": 0,
+      "max": 1023,
+      "default": 563
+    },
+    {
+      "index": 1,
+      "name": "Fold",
+      "description": "Wavefolder depth.",
+      "group": "Shaping",
+      "min": 0,
+      "max": 1023,
+      "default": 614
+    },
+    {
+      "index": 2,
+      "name": "Tilt",
+      "description": "Blend odd vs even emphasis.",
+      "group": "Tone",
+      "min": 0,
+      "max": 1023,
+      "default": 512
+    },
+    {
+      "index": 3,
+      "name": "Sub Mix",
+      "description": "Mix in fixed -1 oct sub.",
+      "group": "Low End",
+      "min": 0,
+      "max": 1023,
+      "default": 563
+    },
+    {
+      "index": 4,
+      "name": "Drive",
+      "description": "Pre-fold drive / saturation.",
+      "group": "Drive",
+      "min": 0,
+      "max": 1023,
+      "default": 460
+    },
+    {
+      "index": 5,
+      "name": "Punch",
+      "description": "Transient envelope depth.",
+      "group": "Dynamics",
+      "min": 0,
+      "max": 1023,
+      "default": 563
+    }
+  ],
+  "tags": [
+    "sync",
+    "bass",
+    "fold"
+  ],
+  "defaultLevel": 45,
+  "wasm": {
+    "module": "../wasm/sync-fold-bass.js",
+    "factory": "SyncFoldBassModule"
+  },
+  "fallback": {
+    "module": "js/sync-fold-bass-js.js",
+    "export": "SyncFoldBassOscillator"
+  }
+}

@@ -1,6 +1,7 @@
 import { WasmOscillator } from '../wasm-loader.js';
 import { FMBellOscillator } from '../fm-bell-js.js';
 import { FMKalimbaOscillator } from '../fm-kalimba-js.js';
+import { SyncFoldBassOscillator } from '../sync-fold-bass-js.js';
 
 const VOICE_IDS = ['osc1', 'osc2'];
 
@@ -202,6 +203,8 @@ class OscMixerProcessor extends AudioWorkletProcessor {
                 return FMKalimbaOscillator;
             case 'hybrid-morph':
                 return FMBellOscillator;
+            case 'sync-fold-bass':
+                return SyncFoldBassOscillator;
             default:
                 return null;
         }

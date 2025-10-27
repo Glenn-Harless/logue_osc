@@ -8,7 +8,10 @@ This repository contains custom oscillator development for the Korg Minilogue XD
 logue_osc/
 ├── logue-sdk/          # Korg Logue SDK submodule
 ├── oscillators/        # Oscillator source code
-│   └── fm-bell/       # FM Bell oscillator
+│   ├── fm-bell/       # FM Bell oscillator
+│   ├── fm-kalimba/    # FM Kalimba oscillator
+│   ├── hybrid-morph/  # Hybrid Morph wavetable oscillator
+│   └── sync-fold-bass/ # Sync Fold Bass hard-sync oscillator
 ├── builds/            # Compiled .mnlgxdunit files
 ├── web-osc-preview/   # Web-based oscillator preview tool
 ├── test_harness/      # C test programs
@@ -58,6 +61,12 @@ make
 - Designed for atmospheric pads and evolving textures (Moderat/Apparat inspired)
 - Parameters cover morph blend, detune, texture, motion, and envelope times
 - Latest build: `builds/hybrid_morph.mnlgxdunit` (run `make` inside `oscillators/hybrid-morph`)
+
+### Sync Fold Bass
+- Hard-sync wavefold oscillator with transient punch envelope
+- Covers gritty basses and sync leads with adjustable sub mix and drive
+- Shape knob sweeps sync ratio; Shift+Shape controls punch envelope depth
+- Run `make` inside `oscillators/sync-fold-bass` to generate `sync_fold_bass.mnlgxdunit`
 
 ## Web Preview Tool
 
